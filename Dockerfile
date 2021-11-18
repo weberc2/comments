@@ -1,7 +1,5 @@
 FROM golang
 
-RUN useradd -u 10001 nobody
-
 RUN apt-get update && apt-get install -y ca-certificates
 
 WORKDIR /workspace
