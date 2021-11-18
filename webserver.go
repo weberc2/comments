@@ -15,6 +15,9 @@ type WebServer struct {
 func (ws *WebServer) Replies(r pz.Request) pz.Response {
 	post := PostID(r.Vars["post-id"])
 	parent := CommentID(r.Vars["parent-id"])
+	if parent == "toplevel" {
+		parent = "__toplevel__"
+	}
 	replies, err := ws.Comments.PostComments(post, parent)
 	if err != nil {
 		var c *CommentNotFoundErr
