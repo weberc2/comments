@@ -22,4 +22,4 @@ COPY --from=0 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.
 
 USER nobody
 
-CMD /bin/comments
+CMD ["/bin/comments"]
