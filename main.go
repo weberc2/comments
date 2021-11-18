@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	html "html/template"
 	"io"
 	"log"
 	"net/http"
@@ -74,6 +75,16 @@ func main() {
 		TimeFunc: time.Now,
 	}
 
+	repliesTemplate, err := html.New("").Parse(repliesTemplate)
+	if err != nil {
+		log.Fatalf("parsing replies template: %v", err)
+	}
+
+	webServer := WebServer{
+		Comments:        commentsService.Store,
+		RepliesTemplate: repliesTemplate,
+	}
+
 	http.ListenAndServe(addr, pz.Register(
 		pz.JSONLog(os.Stderr),
 		pz.Route{
@@ -90,6 +101,11 @@ func main() {
 			Method:  "GET",
 			Path:    "/api/posts/{post-id}/comments/{comment-id}",
 			Handler: commentsService.GetComment,
+		},
+		pz.Route{
+			Method:  "GET",
+			Path:    "/posts/{post-id}/comments/{parent-id}/replies",
+			Handler: webServer.Replies,
 		},
 	))
 }
@@ -159,3 +175,19 @@ func auth(key *ecdsa.PublicKey, handler pz.Handler) pz.Handler {
 		return handler(r)
 	}
 }
+
+const repliesTemplate = `<html>
+<head></head>
+<body>
+<h1>Replies</h1>
+<div id=replies>
+{{range .}}
+	<div id="{{.Post}}">
+		<p class="author">{{.Author}}</p>
+		<p class="date">{{.Created}}</p>
+		<p class="body">{{.Body}}</p>
+	</div>
+{{end}}
+</div>
+</body>
+</html>`
