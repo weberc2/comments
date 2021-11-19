@@ -70,10 +70,12 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 
 func (ws *WebServer) DeleteConfirm(r pz.Request) pz.Response {
 	params := struct {
+		BaseURL string
 		Post    PostID
 		Comment CommentID
 		User    UserID
 	}{
+		BaseURL: ws.BaseURL,
 		Post:    PostID(r.Vars["post-id"]),
 		Comment: CommentID(r.Vars["comment-id"]),
 		User:    UserID(r.Headers.Get("User")), // empty if unauthorized
