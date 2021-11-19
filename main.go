@@ -107,7 +107,7 @@ func main() {
 		pz.Route{
 			Method:  "POST",
 			Path:    "/api/posts/{post-id}/comments",
-			Handler: auth(key, commentsService.PutComment),
+			Handler: auth(key, authHeaderToken, commentsService.PutComment),
 		},
 		pz.Route{
 			Method:  "GET",
@@ -117,7 +117,7 @@ func main() {
 		pz.Route{
 			Method:  "GET",
 			Path:    "/posts/{post-id}/comments/{parent-id}/replies",
-			Handler: authenticate(key, webServer.Replies),
+			Handler: authenticate(key, cookieToken, webServer.Replies),
 		},
 	))
 }
@@ -151,22 +151,46 @@ type authErr struct {
 	Error   string `json:"error"`
 }
 
-func authenticateHelper(key *ecdsa.PublicKey, r pz.Request) *authErr {
+type tokenLocation func(pz.Request) (string, *authErr)
+
+func authHeaderToken(r pz.Request) (string, *authErr) {
 	authorization := r.Headers.Get("Authorization")
 	if !strings.HasPrefix(authorization, "Bearer ") {
-		return &authErr{
+		return "", &authErr{
 			Message: "invalid 'Authorization' header",
 			Error:   "missing 'Bearer' prefix",
 		}
 	}
+	return authorization[len("Bearer "):], nil
+}
+
+func cookieToken(r pz.Request) (string, *authErr) {
+	c, err := r.Cookie("Access-Token")
+	if err != nil {
+		return "", &authErr{
+			Message: "missing cookie `Access-Token`",
+			Error:   err.Error(),
+		}
+	}
+
+	return c.Value, nil
+}
+
+func authenticateHelper(
+	key *ecdsa.PublicKey,
+	tl tokenLocation,
+	r pz.Request,
+) *authErr {
+	tok, err := tl(r)
+	if err != nil {
+		return err
+	}
 
 	var claims jwt.StandardClaims
 	if _, err := jwt.ParseWithClaims(
-		authorization[len("Bearer "):],
+		tok,
 		&claims,
-		func(*jwt.Token) (interface{}, error) {
-			return key, nil
-		},
+		func(*jwt.Token) (interface{}, error) { return key, nil },
 	); err != nil {
 		return &authErr{
 			Message: "invalid 'Authorization' header",
@@ -185,9 +209,13 @@ func authenticateHelper(key *ecdsa.PublicKey, r pz.Request) *authErr {
 	return nil
 }
 
-func authenticate(key *ecdsa.PublicKey, handler pz.Handler) pz.Handler {
+func authenticate(
+	key *ecdsa.PublicKey,
+	tl tokenLocation,
+	handler pz.Handler,
+) pz.Handler {
 	return func(r pz.Request) pz.Response {
-		if err := authenticateHelper(key, r); err != nil {
+		if err := authenticateHelper(key, tl, r); err != nil {
 			// TODO: Add httpeasy.Response.WithLogging() method
 			return handler(r).WithLogging(err)
 		}
@@ -201,8 +229,12 @@ func authenticate(key *ecdsa.PublicKey, handler pz.Handler) pz.Handler {
 	}
 }
 
-func auth(key *ecdsa.PublicKey, handler pz.Handler) pz.Handler {
-	return authenticate(key, func(r pz.Request) pz.Response {
+func auth(
+	key *ecdsa.PublicKey,
+	tl tokenLocation,
+	handler pz.Handler,
+) pz.Handler {
+	return authenticate(key, tl, func(r pz.Request) pz.Response {
 		if r.Headers.Get("User") == "" {
 			return pz.Unauthorized(nil)
 		}
