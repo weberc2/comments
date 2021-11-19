@@ -26,7 +26,7 @@ var (
 )
 
 type CommentsService struct {
-	Store    CommentStore
+	Comments CommentStore
 	TimeFunc func() time.Time
 }
 
@@ -64,7 +64,7 @@ func (cs *CommentsService) PutComment(r pz.Request) pz.Response {
 	c.Author = UserID(r.Headers.Get("User"))
 	c.Created = cs.TimeFunc().UTC()
 	c.Modified = c.Created
-	id, err := cs.Store.PutComment(PostID(r.Vars["post-id"]), &c)
+	id, err := cs.Comments.PutComment(PostID(r.Vars["post-id"]), &c)
 	if err != nil {
 		return pz.InternalServerError(e{err})
 	}
@@ -83,7 +83,7 @@ func (cs *CommentsService) PostComments(r pz.Request) pz.Response {
 	if commentID := r.Vars["comment-id"]; commentID != "toplevel" {
 		parent = CommentID(commentID)
 	}
-	comments, err := cs.Store.PostComments(PostID(r.Vars["post-id"]), parent)
+	comments, err := cs.Comments.Replies(PostID(r.Vars["post-id"]), parent)
 	if err != nil {
 		var c *CommentNotFoundErr
 		if errors.As(err, &c) {
@@ -108,7 +108,7 @@ func (cs *CommentsService) PostComments(r pz.Request) pz.Response {
 }
 
 func (cs *CommentsService) GetComment(r pz.Request) pz.Response {
-	comment, err := cs.Store.GetComment(
+	comment, err := cs.Comments.Comment(
 		PostID(r.Vars["post-id"]),
 		CommentID(r.Vars["comment-id"]),
 	)

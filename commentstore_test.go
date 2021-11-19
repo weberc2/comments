@@ -72,7 +72,7 @@ func TestCOmmentStore_ListComments_PostNotFound(t *testing.T) {
 	}
 
 	// When someone tries to list comments on a post that doesn't exist
-	posts, err := commentStore.PostComments("my-post", "")
+	posts, err := commentStore.Replies("my-post", "")
 
 	// Then expect an empty list is returned (given the S3 schema at the time
 	// of this writing, we have no mechanism to distinguish between "post has

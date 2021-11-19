@@ -18,8 +18,8 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
-github.com/weberc2/httpeasy v0.0.13 h1:v9FsKLVKPdxzc9dy6uA6uffXrR/JeRu2BOEensUrWDM=
-github.com/weberc2/httpeasy v0.0.13/go.mod h1:katZaFKTvrU3Ks5tkfPzTfPlYK8FpsknOVfhe/6U8ow=
+github.com/weberc2/httpeasy v0.0.14 h1:y39CDPupFpDsi9H3d1XtGlJ70ppKhdCMqBkD/Sh4v/g=
+github.com/weberc2/httpeasy v0.0.14/go.mod h1:katZaFKTvrU3Ks5tkfPzTfPlYK8FpsknOVfhe/6U8ow=
 golang.org/x/net v0.0.0-20210614182718-04defd469f4e h1:XpT3nA5TvE525Ne3hInMh6+GETgn27Zfm9dxsThnX2Q=
 golang.org/x/net v0.0.0-20210614182718-04defd469f4e/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
 golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=

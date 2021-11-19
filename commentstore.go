@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"sort"
 )
 
 type PostNotFoundErr struct{ Post PostID }
@@ -65,7 +66,7 @@ func (cs *CommentStore) putComment(post PostID, c *Comment) error {
 
 	// If a `parent` was provided, then make sure it exists
 	if c.Parent != "" {
-		if _, err := cs.GetComment(post, c.Parent); err != nil {
+		if _, err := cs.Comment(post, c.Parent); err != nil {
 			return fmt.Errorf("getting parent comment: %w", err)
 		}
 	}
@@ -137,7 +138,7 @@ func (err *CommentNotFoundErr) Error() string {
 	)
 }
 
-func (cs *CommentStore) GetComment(post PostID, comment CommentID) (Comment, error) {
+func (cs *CommentStore) Comment(post PostID, comment CommentID) (Comment, error) {
 	key := fmt.Sprintf("posts/%s/comments/%s/__comment__", post, comment)
 	c, err := cs.getComment(key)
 	if err != nil {
@@ -153,7 +154,7 @@ func (cs *CommentStore) GetComment(post PostID, comment CommentID) (Comment, err
 	return c, nil
 }
 
-func (cs *CommentStore) PostComments(post PostID, parent CommentID) ([]Comment, error) {
+func (cs *CommentStore) Replies(post PostID, parent CommentID) ([]Comment, error) {
 	if parent == "" {
 		parent = "__toplevel__"
 	}
@@ -170,12 +171,16 @@ func (cs *CommentStore) PostComments(post PostID, parent CommentID) ([]Comment, 
 
 	comments := make([]Comment, len(keys))
 	for i, key := range keys {
-		comment, err := cs.GetComment(post, CommentID(filepath.Base(key)))
+		comment, err := cs.Comment(post, CommentID(filepath.Base(key)))
 		if err != nil {
 			return nil, fmt.Errorf("getting comment: %w", err)
 		}
 		comments[i] = comment
 	}
+
+	sort.Slice(comments, func(i, j int) bool {
+		return comments[i].Created.Before(comments[j].Created)
+	})
 
 	return comments, nil
 }

@@ -43,6 +43,16 @@ func main() {
 		addr = ":8080"
 	}
 
+	loginURL := os.Getenv("LOGIN_URL")
+	if loginURL == "" {
+		log.Fatal("missing required env var: LOGIN_URL")
+	}
+
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		log.Fatal("missing required env var: BASE_URL")
+	}
+
 	bucket := os.Getenv("BUCKET")
 	if bucket == "" {
 		log.Fatal("missing required env var: BUCKET")
@@ -63,7 +73,7 @@ func main() {
 	}
 
 	commentsService := CommentsService{
-		Store: CommentStore{
+		Comments: CommentStore{
 			Bucket:      bucket,
 			Prefix:      "",
 			ObjectStore: &S3ObjectStore{s3.New(sess)},
@@ -81,7 +91,9 @@ func main() {
 	}
 
 	webServer := WebServer{
-		Comments:        commentsService.Store,
+		LoginURL:        loginURL,
+		BaseURL:         baseURL,
+		Comments:        commentsService.Comments,
 		RepliesTemplate: repliesTemplate,
 	}
 
@@ -105,7 +117,7 @@ func main() {
 		pz.Route{
 			Method:  "GET",
 			Path:    "/posts/{post-id}/comments/{parent-id}/replies",
-			Handler: webServer.Replies,
+			Handler: authenticate(key, webServer.Replies),
 		},
 	))
 }
@@ -134,46 +146,68 @@ func decodeKey(encoded string) (*ecdsa.PublicKey, error) {
 	}
 }
 
-func auth(key *ecdsa.PublicKey, handler pz.Handler) pz.Handler {
-	return func(r pz.Request) pz.Response {
-		authorization := r.Headers.Get("Authorization")
-		if !strings.HasPrefix(authorization, "Bearer ") {
-			return pz.Unauthorized(nil, struct {
-				Message, Error string
-			}{
-				Message: "invalid 'Authorization' header",
-				Error:   "missing 'Bearer' prefix",
-			})
-		}
+type authErr struct {
+	Message string `json:"message"`
+	Error   string `json:"error"`
+}
 
-		var claims jwt.StandardClaims
-		if _, err := jwt.ParseWithClaims(
-			authorization[len("Bearer "):],
-			&claims,
-			func(*jwt.Token) (interface{}, error) {
-				return key, nil
-			},
-		); err != nil {
-			return pz.Unauthorized(nil, struct {
-				Message, Error string
-			}{
-				Message: "invalid 'Authorization' header",
-				Error:   err.Error(),
-			})
+func authenticateHelper(key *ecdsa.PublicKey, r pz.Request) *authErr {
+	authorization := r.Headers.Get("Authorization")
+	if !strings.HasPrefix(authorization, "Bearer ") {
+		return &authErr{
+			Message: "invalid 'Authorization' header",
+			Error:   "missing 'Bearer' prefix",
 		}
-
-		if err := claims.Valid(); err != nil {
-			return pz.Unauthorized(nil, struct {
-				Message, Error string
-			}{
-				Message: "invalid access token claim(s)",
-				Error:   err.Error(),
-			})
-		}
-
-		r.Headers.Set("User", claims.Subject)
-		return handler(r)
 	}
+
+	var claims jwt.StandardClaims
+	if _, err := jwt.ParseWithClaims(
+		authorization[len("Bearer "):],
+		&claims,
+		func(*jwt.Token) (interface{}, error) {
+			return key, nil
+		},
+	); err != nil {
+		return &authErr{
+			Message: "invalid 'Authorization' header",
+			Error:   err.Error(),
+		}
+	}
+
+	if err := claims.Valid(); err != nil {
+		return &authErr{
+			Message: "invalid access token claim(s)",
+			Error:   err.Error(),
+		}
+	}
+
+	r.Headers.Set("User", claims.Subject)
+	return nil
+}
+
+func authenticate(key *ecdsa.PublicKey, handler pz.Handler) pz.Handler {
+	return func(r pz.Request) pz.Response {
+		if err := authenticateHelper(key, r); err != nil {
+			// TODO: Add httpeasy.Response.WithLogging() method
+			return handler(r).WithLogging(err)
+		}
+		return handler(r).WithLogging(struct {
+			Message string `json:"message"`
+			User    string `json:"user"`
+		}{
+			Message: "authenticated successfully",
+			User:    r.Headers.Get("User"),
+		})
+	}
+}
+
+func auth(key *ecdsa.PublicKey, handler pz.Handler) pz.Handler {
+	return authenticate(key, func(r pz.Request) pz.Response {
+		if r.Headers.Get("User") == "" {
+			return pz.Unauthorized(nil)
+		}
+		return handler(r)
+	})
 }
 
 const repliesTemplate = `<html>
@@ -181,11 +215,31 @@ const repliesTemplate = `<html>
 <body>
 <h1>Replies</h1>
 <div id=replies>
-{{range .}}
-	<div id="{{.Post}}">
-		<p class="author">{{.Author}}</p>
-		<p class="date">{{.Created}}</p>
-		<p class="body">{{.Body}}</p>
+{{if .User}}{{.User}}{{else}}<a href="{{.LoginURL}}">login</a>{{end}}
+{{$baseURL := .BaseURL}}
+{{$post := .Post}}
+{{$user := .User}}
+{{range .Replies}}
+	<div id="{{.ID}}">
+		<div class="comment-header">
+			<span class="author">{{.Author}}</p>
+			<span class="date">{{.Created}}</p>
+			{{if eq .Author $user}}
+			<a href="{{$baseURL}}/posts/{{$post}}/comments/{{.ID}}/delete-confirm">
+				delete
+			</a>
+			<a href="{{$baseURL}}/posts/{{$post}}/comments/{{.ID}}/edit">
+				edit
+			</a>
+			{{end}}
+			{{/* if the user is logged in they can reply */}}
+			{{if $user}}
+			<a href="{{$baseURL}}/posts/{{$post}}/comments/{{.ID}}/reply">
+				reply
+			</a>
+			{{end}}
+			<p class="body">{{.Body}}</p>
+		</div>
 	</div>
 {{end}}
 </div>

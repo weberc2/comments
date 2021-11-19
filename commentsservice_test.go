@@ -40,15 +40,13 @@ func TestPutComment(t *testing.T) {
 			// CommentStore, `author` defers to the `User` header, and
 			// `created` and `modified` are set to the current time).
 			name: "ignores id, author, created, modified",
-			input: fmt.Sprintf(
-				`{
+			input: `{
 	"id": "asdf",
 	"author": "foo",
 	"body": "great comment",
 	"created": "1970-01-01T00:00:00.000000Z",
 	"modified": "1970-01-01T00:00:00.000000Z"
 }`,
-			),
 			wantedStatus: http.StatusCreated,
 			wantedBody: &Comment{
 				ID:       "comment",
@@ -90,7 +88,7 @@ func TestPutComment(t *testing.T) {
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			commentsService := CommentsService{
-				Store: CommentStore{
+				Comments: CommentStore{
 					ObjectStore: objectStoreFake{},
 					PostStore:   &postStoreFake{"post"},
 					Bucket:      "bucket",
@@ -151,15 +149,6 @@ func readAll(s pz.Serializer) ([]byte, error) {
 	}
 
 	return b.Bytes(), nil
-}
-
-func unmarshal(s pz.Serializer, ptr interface{}) error {
-	data, err := readAll(s)
-	if err != nil {
-		return fmt.Errorf("reading serializer: %w", err)
-	}
-
-	return json.Unmarshal(data, ptr)
 }
 
 func (c *Comment) compare(other *Comment) error {
