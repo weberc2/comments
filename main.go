@@ -81,6 +81,19 @@ func main() {
 		log.Fatalf("parsing REPLIES_TEMPLATE: %v", err)
 	}
 
+	deleteConfirmationTemplateString := os.Getenv(
+		"DELETE_CONFIRMATION_TEMPLATE",
+	)
+	if err != nil {
+		log.Fatal("missing required env var: DELETE_CONFIRMATION_TEMPLATE")
+	}
+	deleteConfirmationTemplate, err := html.New("").Parse(
+		deleteConfirmationTemplateString,
+	)
+	if err != nil {
+		log.Fatalf("parsing DELETE_CONFIRMATION_TEMPLATE: %v", err)
+	}
+
 	sess, err := session.NewSession()
 	if err != nil {
 		log.Fatalf("creating AWS session: %v", err)
@@ -100,11 +113,12 @@ func main() {
 	}
 
 	webServer := WebServer{
-		LoginURL:        loginURL,
-		LogoutURL:       logoutURL,
-		BaseURL:         baseURL,
-		Comments:        commentsService.Comments,
-		RepliesTemplate: repliesTemplate,
+		LoginURL:                   loginURL,
+		LogoutURL:                  logoutURL,
+		BaseURL:                    baseURL,
+		Comments:                   commentsService.Comments,
+		RepliesTemplate:            repliesTemplate,
+		DeleteConfirmationTemplate: deleteConfirmationTemplate,
 	}
 
 	http.ListenAndServe(addr, pz.Register(

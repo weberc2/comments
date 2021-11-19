@@ -7,12 +7,19 @@ import (
 	pz "github.com/weberc2/httpeasy"
 )
 
+type logging struct {
+	Post   PostID    `json:"post"`
+	Parent CommentID `json:"parent"`
+	Error  string    `json:"error"`
+}
+
 type WebServer struct {
-	LoginURL        string
-	LogoutURL       string
-	BaseURL         string
-	Comments        CommentStore
-	RepliesTemplate *html.Template
+	LoginURL                   string
+	LogoutURL                  string
+	BaseURL                    string
+	Comments                   CommentStore
+	RepliesTemplate            *html.Template
+	DeleteConfirmationTemplate *html.Template
 }
 
 func (ws *WebServer) Replies(r pz.Request) pz.Response {
@@ -25,22 +32,14 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 	if err != nil {
 		var c *CommentNotFoundErr
 		if errors.As(err, &c) {
-			pz.NotFound(nil, struct {
-				Post   PostID
-				Parent CommentID
-				Error  string
-			}{
+			pz.NotFound(nil, &logging{
 				Post:   post,
 				Parent: parent,
 				Error:  err.Error(),
 			})
 		}
 
-		return pz.InternalServerError(struct {
-			Post   PostID
-			Parent CommentID
-			Error  string
-		}{
+		return pz.InternalServerError(&logging{
 			Post:   post,
 			Parent: parent,
 			Error:  err.Error(),
@@ -65,12 +64,23 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 			Replies:   replies,
 			User:      UserID(r.Headers.Get("User")), // empty if unauthorized
 		}),
-		struct {
-			Post   PostID
-			Parent CommentID
-		}{
-			Post:   post,
-			Parent: parent,
-		},
+		&logging{Post: post, Parent: parent},
+	)
+}
+
+func (ws *WebServer) DeleteConfirmation(r pz.Request) pz.Response {
+	params := struct {
+		Post    PostID
+		Comment CommentID
+		User    UserID
+	}{
+		Post:    PostID(r.Vars["post-id"]),
+		Comment: CommentID(r.Vars["comment-id"]),
+		User:    UserID(r.Headers.Get("User")), // empty if unauthorized
+	}
+
+	return pz.Ok(
+		pz.HTMLTemplate(ws.DeleteConfirmationTemplate, params),
+		params,
 	)
 }
