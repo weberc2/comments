@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -eo pipefail
+
+signingKeys="$(kubectl get secret -n auth -o json signing-keys | jq -r '.data|map_values(@base64d)')"
+authAWSIAMAccessKey="$(kubectl get secret -n auth -o json aws-iam-access-key | jq -r '.data|map_values(@base64d)')"
+commentsAWSIAMAccessKey="$(kubectl get secret -n comments -o json aws-iam-access-key | jq -r '.data|map_values(@base64d)')"
+export AUTH_ACCESS_SIGNING_KEY="$(echo "$signingKeys" | jq -r '.access_key_private')"
+export AUTH_REFRESH_SIGNING_KEY="$(echo "$signingKeys" | jq -r '.refresh_key_private')"
+export AUTH_RESET_SIGNING_KEY="$(echo "$signingKeys" | jq -r '.reset_key_private')"
+export AUTH_AWS_ACCESS_KEY_ID="$(echo "$authAWSIAMAccessKey" | jq -r '.aws_access_key_id')"
+export AUTH_AWS_SECRET_ACCESS_KEY="$(echo "$authAWSIAMAccessKey" | jq -r '.aws_secret_access_key')"
+export COMMENTS_ACCESS_PUBLIC_KEY="$(echo "$signingKeys" | jq -r '.access_key_public')"
+export COMMENTS_AWS_ACCESS_KEY_ID="$(echo "$commentsAWSIAMAccessKey" | jq -r '.aws_access_key_id')"
+export COMMENTS_AWS_SECRET_ACCESS_KEY="$(echo "$commentsAWSIAMAccessKey" | jq -r '.aws_secret_access_key')"
+docker-compose up -d --build
