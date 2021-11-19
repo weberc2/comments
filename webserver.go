@@ -68,7 +68,7 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 	)
 }
 
-func (ws *WebServer) DeleteConfirmation(r pz.Request) pz.Response {
+func (ws *WebServer) DeleteConfirm(r pz.Request) pz.Response {
 	params := struct {
 		Post    PostID
 		Comment CommentID

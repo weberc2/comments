@@ -143,6 +143,11 @@ func main() {
 			Path:    "/posts/{post-id}/comments/{parent-id}/replies",
 			Handler: authenticate(key, cookieToken, webServer.Replies),
 		},
+		pz.Route{
+			Method:  "GET",
+			Path:    "/posts/{post-id}/comments/{comment-id}/delete-confirm",
+			Handler: authenticate(key, cookieToken, webServer.DeleteConfirm),
+		},
 	))
 }
 
