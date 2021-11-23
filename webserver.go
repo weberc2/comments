@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	html "html/template"
+	"net/url"
 
 	pz "github.com/weberc2/httpeasy"
 )
@@ -71,7 +72,7 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 }
 
 func (ws *WebServer) DeleteConfirm(r pz.Request) pz.Response {
-	params := struct {
+	context := struct {
 		BaseURL string  `json:"baseURL"`
 		User    UserID  `json:"user"`
 		Post    PostID  `json:"post"`
@@ -84,17 +85,53 @@ func (ws *WebServer) DeleteConfirm(r pz.Request) pz.Response {
 		User:    UserID(r.Headers.Get("User")), // empty if unauthorized
 	}
 
-	comment, err := ws.Comments.Comment(params.Post, params.Comment.ID)
+	comment, err := ws.Comments.Comment(context.Post, context.Comment.ID)
 	if err != nil {
 		var e *CommentNotFoundErr
 		if errors.As(err, &e) {
-			params.Error = err.Error()
-			return pz.NotFound(nil, params)
+			context.Error = err.Error()
+			return pz.NotFound(nil, context)
 		}
+		return pz.InternalServerError(context)
 	}
 
-	params.Comment = comment
-	return pz.Ok(pz.HTMLTemplate(deleteConfirmationTemplate, params), params)
+	context.Comment = comment
+	return pz.Ok(pz.HTMLTemplate(deleteConfirmationTemplate, context), context)
+}
+
+func (ws *WebServer) Delete(r pz.Request) pz.Response {
+	context := struct {
+		Message  string    `json:"message"`
+		Post     PostID    `json:"post"`
+		Comment  CommentID `json:"comment"`
+		Redirect string    `json:"redirect"`
+		Error    string    `json:"error,omitempty"`
+	}{
+		Post:     PostID(r.Vars["post-id"]),
+		Comment:  CommentID(r.Vars["comment-id"]),
+		Redirect: ws.BaseURL + "/" + r.URL.Query().Get("redirect"),
+	}
+
+	if err := ws.Comments.Delete(context.Post, context.Comment); err != nil {
+		var e *CommentNotFoundErr
+		if errors.As(err, &e) {
+			context.Message = "comment not found"
+			context.Error = err.Error()
+			return pz.NotFound(nil, context)
+		}
+		context.Message = "deleting comment"
+		context.Error = err.Error()
+		return pz.InternalServerError(context)
+	}
+
+	if _, err := url.Parse(context.Redirect); err != nil {
+		context.Message = "error parsing redirect; redirecting to `BaseURL`"
+		context.Error = err.Error()
+		return pz.TemporaryRedirect(context.Redirect, context)
+	}
+
+	context.Message = "successfully deleted comment"
+	return pz.TemporaryRedirect(context.Redirect, context)
 }
 
 var (
@@ -155,7 +192,7 @@ var (
     <a href="{{.BaseURL}}/posts/{{.Post}}/comments/{{.Comment.ID}}">Cancel</a>
 </div>
 <div id="delete">
-    <a href="{{.BaseURL}}/posts/{{.Post}}/comments/{{.Comment.ID}}/delete">
+    <a href="{{.BaseURL}}/posts/{{.Post}}/comments/{{.Comment.ID}}/delete?redirect=posts/{{.Post}}/comments/toplevel/replies">
         Delete
     </a>
 </div>

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"path/filepath"
 	"sort"
 )
@@ -183,4 +184,53 @@ func (cs *CommentStore) Replies(post PostID, parent CommentID) ([]Comment, error
 	})
 
 	return comments, nil
+}
+
+func (cs *CommentStore) Delete(post PostID, comment CommentID) error {
+	// To avoid dangling pointers, delete the pointer first and then the
+	// comment object itself.
+
+	c, err := cs.Comment(post, comment)
+	if err != nil {
+		var e *ObjectNotFoundErr
+		if errors.As(err, &e) {
+			return fmt.Errorf(
+				"getting comment: %w",
+				&CommentNotFoundErr{Post: post, Comment: comment},
+			)
+		}
+		return fmt.Errorf("deleting comment: %w", err)
+	}
+
+	parent := c.Parent
+	if c.Parent == "" {
+		parent = "__toplevel__"
+	}
+	if err := cs.ObjectStore.DeleteObject(
+		cs.Bucket,
+		fmt.Sprintf("posts/%s/comments/%s/comments/%s", post, parent, c.ID),
+	); err != nil {
+		log.Printf(
+			`{"message": "parent link not found", "post": "%s", "parent": "%s", "comment": "%s", "error": "%s"}`,
+			post,
+			parent,
+			comment,
+			err.Error(),
+		)
+	}
+
+	if err := cs.ObjectStore.DeleteObject(
+		cs.Bucket,
+		fmt.Sprintf("posts/%s/comments/%s/__comment__", post, comment),
+	); err != nil {
+		var e *ObjectNotFoundErr
+		if errors.As(err, &e) {
+			return fmt.Errorf(
+				"getting comment: %w",
+				&CommentNotFoundErr{Post: post, Comment: comment},
+			)
+		}
+		return fmt.Errorf("deleting comment: %w", err)
+	}
+	return nil
 }

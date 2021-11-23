@@ -22,4 +22,5 @@ type ObjectStore interface {
 	PutObject(bucket, key string, data io.ReadSeeker) error
 	GetObject(bucket, key string) (io.ReadCloser, error)
 	ListObjects(bucket, prefix string) ([]string, error)
+	DeleteObject(bucket, key string) error
 }

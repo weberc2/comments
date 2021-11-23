@@ -72,3 +72,13 @@ func (os *S3ObjectStore) ListObjects(bucket, prefix string) ([]string, error) {
 	}
 	return keys, nil
 }
+
+func (os *S3ObjectStore) DeleteObject(bucket, key string) error {
+	if _, err := os.Client.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+	}); err != nil {
+		return fmt.Errorf("deleting objects: %w", err)
+	}
+	return nil
+}
