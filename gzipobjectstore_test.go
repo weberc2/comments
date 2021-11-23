@@ -37,6 +37,15 @@ func (osf objectStoreFake) ListObjects(bucket, prefix string) ([]string, error) 
 	return out, nil
 }
 
+func (osf objectStoreFake) DeleteObject(bucket, key string) error {
+	k := [2]string{bucket, key}
+	if _, found := osf[k]; !found {
+		return &ObjectNotFoundErr{Bucket: bucket, Key: key}
+	}
+	delete(osf, k)
+	return nil
+}
+
 func TestGzipObjectStore(t *testing.T) {
 	objectStore := GzipObjectStore{objectStoreFake{}}
 	if err := objectStore.PutObject(
