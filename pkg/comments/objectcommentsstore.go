@@ -9,24 +9,26 @@ import (
 	"log"
 	"path/filepath"
 	"sort"
+
+	"github.com/weberc2/comments/pkg/types"
 )
 
-type PostNotFoundErr struct{ Post PostID }
+type PostNotFoundErr struct{ Post types.PostID }
 
 func (err *PostNotFoundErr) Error() string {
 	return fmt.Sprintf("post not found: %s", err.Post)
 }
 
 type PostStore interface {
-	Exists(PostID) error
+	Exists(types.PostID) error
 }
 
 type ObjectCommentsStore struct {
-	ObjectStore ObjectStore
+	ObjectStore types.ObjectStore
 	PostStore   PostStore
 	Bucket      string
 	Prefix      string
-	IDFunc      func() CommentID
+	IDFunc      func() types.CommentID
 }
 
 func (ocs *ObjectCommentsStore) putObject(path string, data []byte) error {
@@ -56,7 +58,7 @@ func (ocs *ObjectCommentsStore) getObject(key string) ([]byte, error) {
 	return data, nil
 }
 
-func (ocs *ObjectCommentsStore) putComment(c *Comment) error {
+func (ocs *ObjectCommentsStore) putComment(c *types.Comment) error {
 	data, err := json.Marshal(&c)
 	if err != nil {
 		return fmt.Errorf("marshaling comment: %w", err)
@@ -80,7 +82,7 @@ func (ocs *ObjectCommentsStore) putComment(c *Comment) error {
 	return nil
 }
 
-func (ocs *ObjectCommentsStore) putParentLink(c *Comment) error {
+func (ocs *ObjectCommentsStore) putParentLink(c *types.Comment) error {
 	parent := c.Parent
 	if c.Parent == "" {
 		parent = "__toplevel__"
@@ -91,7 +93,7 @@ func (ocs *ObjectCommentsStore) putParentLink(c *Comment) error {
 	)
 }
 
-func (ocs *ObjectCommentsStore) Put(c *Comment) (*Comment, error) {
+func (ocs *ObjectCommentsStore) Put(c *types.Comment) (*types.Comment, error) {
 	cp := *c
 	cp.ID = ocs.IDFunc()
 	if err := ocs.putComment(&cp); err != nil {
@@ -114,12 +116,12 @@ func (ocs *ObjectCommentsStore) listObjects(prefix string) ([]string, error) {
 	return entries, nil
 }
 
-func (ocs *ObjectCommentsStore) getComment(key string) (Comment, error) {
+func (ocs *ObjectCommentsStore) getComment(key string) (types.Comment, error) {
 	data, err := ocs.getObject(key)
 	if err != nil {
-		return Comment{}, fmt.Errorf("getting object: %w", err)
+		return types.Comment{}, fmt.Errorf("getting object: %w", err)
 	}
-	var c Comment
+	var c types.Comment
 	if err := json.Unmarshal(data, &c); err != nil {
 		return c, fmt.Errorf("marshaling comment: %w", err)
 	}
@@ -127,17 +129,17 @@ func (ocs *ObjectCommentsStore) getComment(key string) (Comment, error) {
 }
 
 func (ocs *ObjectCommentsStore) Comment(
-	post PostID,
-	comment CommentID,
-) (*Comment, error) {
+	post types.PostID,
+	comment types.CommentID,
+) (*types.Comment, error) {
 	key := fmt.Sprintf("posts/%s/comments/%s/__comment__", post, comment)
 	c, err := ocs.getComment(key)
 	if err != nil {
-		var e *ObjectNotFoundErr
+		var e *types.ObjectNotFoundErr
 		if errors.As(err, &e) {
 			return nil, fmt.Errorf(
 				"getting comment: %w",
-				&CommentNotFoundErr{Post: post, Comment: comment},
+				&types.CommentNotFoundErr{Post: post, Comment: comment},
 			)
 		}
 		return nil, fmt.Errorf("getting comment: %w", err)
@@ -146,9 +148,9 @@ func (ocs *ObjectCommentsStore) Comment(
 }
 
 func (ocs *ObjectCommentsStore) Replies(
-	post PostID,
-	comment CommentID,
-) ([]*Comment, error) {
+	post types.PostID,
+	comment types.CommentID,
+) ([]*types.Comment, error) {
 	if comment == "" {
 		comment = "__toplevel__"
 	}
@@ -163,9 +165,9 @@ func (ocs *ObjectCommentsStore) Replies(
 		)
 	}
 
-	comments := make([]*Comment, len(keys))
+	comments := make([]*types.Comment, len(keys))
 	for i, key := range keys {
-		comment, err := ocs.Comment(post, CommentID(filepath.Base(key)))
+		comment, err := ocs.Comment(post, types.CommentID(filepath.Base(key)))
 		if err != nil {
 			return nil, fmt.Errorf("getting comment: %w", err)
 		}
@@ -179,17 +181,20 @@ func (ocs *ObjectCommentsStore) Replies(
 	return comments, nil
 }
 
-func (ocs *ObjectCommentsStore) Delete(post PostID, comment CommentID) error {
+func (ocs *ObjectCommentsStore) Delete(
+	post types.PostID,
+	comment types.CommentID,
+) error {
 	// To avoid dangling pointers, delete the pointer first and then the
 	// comment object itself.
 
 	c, err := ocs.Comment(post, comment)
 	if err != nil {
-		var e *ObjectNotFoundErr
+		var e *types.ObjectNotFoundErr
 		if errors.As(err, &e) {
 			return fmt.Errorf(
 				"getting comment: %w",
-				&CommentNotFoundErr{Post: post, Comment: comment},
+				&types.CommentNotFoundErr{Post: post, Comment: comment},
 			)
 		}
 		return fmt.Errorf("deleting comment: %w", err)
@@ -216,11 +221,11 @@ func (ocs *ObjectCommentsStore) Delete(post PostID, comment CommentID) error {
 		ocs.Bucket,
 		fmt.Sprintf("posts/%s/comments/%s/__comment__", post, comment),
 	); err != nil {
-		var e *ObjectNotFoundErr
+		var e *types.ObjectNotFoundErr
 		if errors.As(err, &e) {
 			return fmt.Errorf(
 				"getting comment: %w",
-				&CommentNotFoundErr{Post: post, Comment: comment},
+				&types.CommentNotFoundErr{Post: post, Comment: comment},
 			)
 		}
 		return fmt.Errorf("deleting comment: %w", err)

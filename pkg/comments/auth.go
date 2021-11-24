@@ -7,6 +7,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/weberc2/auth/pkg/client"
+	"github.com/weberc2/comments/pkg/types"
 	pz "github.com/weberc2/httpeasy"
 )
 
@@ -60,16 +61,16 @@ func (atcp AuthTypeClientProgram) validate(
 }
 
 type result struct {
-	Message string `json:"message"`
-	Error   string `json:"error,omitempty"`
-	User    UserID `json:"user,omitempty"`
+	Message string       `json:"message"`
+	Error   string       `json:"error,omitempty"`
+	User    types.UserID `json:"user,omitempty"`
 }
 
 func resultErr(message string, err error) *result {
 	return &result{Message: message, Error: err.Error()}
 }
 
-func resultOK(message string, user UserID) *result {
+func resultOK(message string, user types.UserID) *result {
 	return &result{Message: message, User: user}
 }
 
@@ -120,7 +121,10 @@ func (atws *AuthTypeWebServer) validate(
 	return resultOK("successfully validated access token", user)
 }
 
-func validateAccessToken(token string, key *ecdsa.PublicKey) (UserID, error) {
+func validateAccessToken(
+	token string,
+	key *ecdsa.PublicKey,
+) (types.UserID, error) {
 	var claims jwt.StandardClaims
 	if _, err := jwt.ParseWithClaims(
 		token,
@@ -131,5 +135,5 @@ func validateAccessToken(token string, key *ecdsa.PublicKey) (UserID, error) {
 	); err != nil {
 		return "", err
 	}
-	return UserID(claims.Subject), nil
+	return types.UserID(claims.Subject), nil
 }

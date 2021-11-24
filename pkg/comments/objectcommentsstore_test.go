@@ -3,11 +3,14 @@ package comments
 import (
 	"errors"
 	"testing"
+
+	"github.com/weberc2/comments/pkg/testsupport"
+	"github.com/weberc2/comments/pkg/types"
 )
 
-type postStoreFake []PostID
+type postStoreFake []types.PostID
 
-func (psf postStoreFake) Exists(post PostID) error {
+func (psf postStoreFake) Exists(post types.PostID) error {
 	for i := range psf {
 		if psf[i] == post {
 			return nil
@@ -16,22 +19,22 @@ func (psf postStoreFake) Exists(post PostID) error {
 	return &PostNotFoundErr{post}
 }
 
-func TestCommentStore_Put_ParentNotFound(t *testing.T) {
+func TestObjectCommentStore_Put_ParentNotFound(t *testing.T) {
 	// Given a comment store with a post called "my-post"
 	commentStore := ObjectCommentsStore{
-		ObjectStore: objectStoreFake{},
+		ObjectStore: testsupport.ObjectStoreFake{},
 		PostStore:   postStoreFake{"my-post"},
-		IDFunc:      func() CommentID { return "" },
+		IDFunc:      func() types.CommentID { return "" },
 	}
 
 	// When a comment is added to "my-post" with a `Parent` that doesn't exist
-	_, err := commentStore.Put(&Comment{
+	_, err := commentStore.Put(&types.Comment{
 		Post:   "my-post",
 		Parent: "doesnt-exist",
 	})
 
-	// Then expect a `CommentNotFoundErr` is returned
-	var cnfe *CommentNotFoundErr
+	// Then expect a `types.CommentNotFoundErr` is returned
+	var cnfe *types.CommentNotFoundErr
 	if errors.As(err, &cnfe) {
 		if cnfe.Post == "my-post" && cnfe.Comment == "doesnt-exist" {
 			return
@@ -39,21 +42,21 @@ func TestCommentStore_Put_ParentNotFound(t *testing.T) {
 		err = cnfe
 	}
 	t.Fatalf(
-		`Wanted CommentNotFoundErr{Post: "my-post", Comment: "doesnt-exist"}; found %# v`,
+		`Wanted types.CommentNotFoundErr{Post: "my-post", Comment: "doesnt-exist"}; found %# v`,
 		err,
 	)
 }
 
-func TestCommentStore_Put_PostNotFound(t *testing.T) {
+func TestObjectCommentStore_Put_PostNotFound(t *testing.T) {
 	// Given a comment store with no posts
 	commentStore := ObjectCommentsStore{
-		ObjectStore: objectStoreFake{},
+		ObjectStore: testsupport.ObjectStoreFake{},
 		PostStore:   postStoreFake{},
-		IDFunc:      func() CommentID { return "" },
+		IDFunc:      func() types.CommentID { return "" },
 	}
 
 	// When a comment is added on an unknown post
-	_, err := commentStore.Put(&Comment{Post: "my-post"})
+	_, err := commentStore.Put(&types.Comment{Post: "my-post"})
 
 	// Then expect a `PostNotFoundErr` is returned
 	var pnfe *PostNotFoundErr
@@ -69,9 +72,9 @@ func TestCommentStore_Put_PostNotFound(t *testing.T) {
 func TestCOmmentStore_ListComments_PostNotFound(t *testing.T) {
 	// Given a comment store with no posts
 	commentStore := ObjectCommentsStore{
-		ObjectStore: objectStoreFake{},
+		ObjectStore: testsupport.ObjectStoreFake{},
 		PostStore:   postStoreFake{},
-		IDFunc:      func() CommentID { return "" },
+		IDFunc:      func() types.CommentID { return "" },
 	}
 
 	// When someone tries to list comments on a post that doesn't exist

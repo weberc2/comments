@@ -5,33 +5,34 @@ import (
 	html "html/template"
 	"net/url"
 
+	"github.com/weberc2/comments/pkg/types"
 	pz "github.com/weberc2/httpeasy"
 )
 
 type logging struct {
-	Post   PostID    `json:"post"`
-	Parent CommentID `json:"parent"`
-	User   UserID    `json:"user,omitempty"`
-	Error  string    `json:"error,omitempty"`
+	Post   types.PostID    `json:"post"`
+	Parent types.CommentID `json:"parent"`
+	User   types.UserID    `json:"user,omitempty"`
+	Error  string          `json:"error,omitempty"`
 }
 
 type WebServer struct {
 	LoginURL  string
 	LogoutURL string
 	BaseURL   string
-	Comments  CommentsStore
+	Comments  types.CommentsStore
 }
 
 func (ws *WebServer) Replies(r pz.Request) pz.Response {
-	post := PostID(r.Vars["post-id"])
-	parent := CommentID(r.Vars["parent-id"])
-	user := UserID(r.Headers.Get("User"))
+	post := types.PostID(r.Vars["post-id"])
+	parent := types.CommentID(r.Vars["parent-id"])
+	user := types.UserID(r.Headers.Get("User"))
 	if parent == "toplevel" {
 		parent = "" // this tells the CommentStore to fetch toplevel replies.
 	}
 	replies, err := ws.Comments.Replies(post, parent)
 	if err != nil {
-		var c *CommentNotFoundErr
+		var c *types.CommentNotFoundErr
 		if errors.As(err, &c) {
 			pz.NotFound(nil, &logging{
 				Post:   post,
@@ -51,13 +52,13 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 
 	return pz.Ok(
 		pz.HTMLTemplate(repliesTemplate, struct {
-			LoginURL  string     `json:"loginURL"`
-			LogoutURL string     `json:"logoutURL"`
-			BaseURL   string     `json:"baseURL"`
-			Post      PostID     `json:"post"`
-			Parent    CommentID  `json:"parent"`
-			Replies   []*Comment `json:"replies"`
-			User      UserID     `json:"user"`
+			LoginURL  string           `json:"loginURL"`
+			LogoutURL string           `json:"logoutURL"`
+			BaseURL   string           `json:"baseURL"`
+			Post      types.PostID     `json:"post"`
+			Parent    types.CommentID  `json:"parent"`
+			Replies   []*types.Comment `json:"replies"`
+			User      types.UserID     `json:"user"`
 		}{
 			LoginURL:  ws.LoginURL,
 			LogoutURL: ws.LogoutURL,
@@ -73,21 +74,21 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 
 func (ws *WebServer) DeleteConfirm(r pz.Request) pz.Response {
 	context := struct {
-		BaseURL string   `json:"baseURL"`
-		User    UserID   `json:"user"`
-		Post    PostID   `json:"post"`
-		Comment *Comment `json:"comment"`
-		Error   string   `json:"error,omitempty"`
+		BaseURL string         `json:"baseURL"`
+		User    types.UserID   `json:"user"`
+		Post    types.PostID   `json:"post"`
+		Comment *types.Comment `json:"comment"`
+		Error   string         `json:"error,omitempty"`
 	}{
 		BaseURL: ws.BaseURL,
-		Post:    PostID(r.Vars["post-id"]),
-		Comment: &Comment{ID: CommentID(r.Vars["comment-id"])},
-		User:    UserID(r.Headers.Get("User")), // empty if unauthorized
+		Post:    types.PostID(r.Vars["post-id"]),
+		Comment: &types.Comment{ID: types.CommentID(r.Vars["comment-id"])},
+		User:    types.UserID(r.Headers.Get("User")), // empty if unauthorized
 	}
 
 	comment, err := ws.Comments.Comment(context.Post, context.Comment.ID)
 	if err != nil {
-		var e *CommentNotFoundErr
+		var e *types.CommentNotFoundErr
 		if errors.As(err, &e) {
 			context.Error = err.Error()
 			return pz.NotFound(nil, context)
@@ -101,19 +102,19 @@ func (ws *WebServer) DeleteConfirm(r pz.Request) pz.Response {
 
 func (ws *WebServer) Delete(r pz.Request) pz.Response {
 	context := struct {
-		Message  string    `json:"message"`
-		Post     PostID    `json:"post"`
-		Comment  CommentID `json:"comment"`
-		Redirect string    `json:"redirect"`
-		Error    string    `json:"error,omitempty"`
+		Message  string          `json:"message"`
+		Post     types.PostID    `json:"post"`
+		Comment  types.CommentID `json:"comment"`
+		Redirect string          `json:"redirect"`
+		Error    string          `json:"error,omitempty"`
 	}{
-		Post:     PostID(r.Vars["post-id"]),
-		Comment:  CommentID(r.Vars["comment-id"]),
+		Post:     types.PostID(r.Vars["post-id"]),
+		Comment:  types.CommentID(r.Vars["comment-id"]),
 		Redirect: ws.BaseURL + "/" + r.URL.Query().Get("redirect"),
 	}
 
 	if err := ws.Comments.Delete(context.Post, context.Comment); err != nil {
-		var e *CommentNotFoundErr
+		var e *types.CommentNotFoundErr
 		if errors.As(err, &e) {
 			context.Message = "comment not found"
 			context.Error = err.Error()

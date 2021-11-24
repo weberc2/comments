@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/weberc2/comments/pkg/testsupport"
+	"github.com/weberc2/comments/pkg/types"
 	pz "github.com/weberc2/httpeasy"
 )
 
@@ -24,7 +26,7 @@ func TestPutComment(t *testing.T) {
 			name:         "creates comment",
 			input:        `{"body": "great comment"}`,
 			wantedStatus: http.StatusCreated,
-			wantedBody: &Comment{
+			wantedBody: &types.Comment{
 				ID:       "comment",
 				Author:   "user",
 				Parent:   "",
@@ -48,7 +50,7 @@ func TestPutComment(t *testing.T) {
 	"modified": "1970-01-01T00:00:00.000000Z"
 }`,
 			wantedStatus: http.StatusCreated,
-			wantedBody: &Comment{
+			wantedBody: &types.Comment{
 				ID:       "comment",
 				Author:   "user",
 				Body:     "great comment",
@@ -76,7 +78,7 @@ func TestPutComment(t *testing.T) {
 			name:         "html escape",
 			input:        `{"body": "<script></script>"}`,
 			wantedStatus: http.StatusCreated,
-			wantedBody: &Comment{
+			wantedBody: &types.Comment{
 				ID:       "comment",
 				Author:   "user",
 				Body:     "&lt;script&gt;&lt;/script&gt;",
@@ -89,11 +91,11 @@ func TestPutComment(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			commentsService := CommentsService{
 				Comments: &ObjectCommentsStore{
-					ObjectStore: objectStoreFake{},
+					ObjectStore: testsupport.ObjectStoreFake{},
 					PostStore:   &postStoreFake{"post"},
 					Bucket:      "bucket",
 					Prefix:      "prefix",
-					IDFunc:      func() CommentID { return "comment" },
+					IDFunc:      func() types.CommentID { return "comment" },
 				},
 				TimeFunc: func() time.Time { return now },
 			}
@@ -151,80 +153,8 @@ func readAll(s pz.Serializer) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (c *Comment) compare(other *Comment) error {
-	if c == nil && other == nil {
-		return nil
-	}
-
-	if c != nil && other == nil {
-		return fmt.Errorf("Comment: unexpected `nil`")
-	}
-
-	if c == nil && other != nil {
-		return fmt.Errorf("Comment: wanted `nil`; found not-nil")
-	}
-
-	if c.ID != other.ID {
-		return fmt.Errorf(
-			"Comment.ID: wanted `%s`; found `%s`",
-			c.ID,
-			other.ID,
-		)
-	}
-
-	if c.Author != other.Author {
-		return fmt.Errorf(
-			"Comment.Author: wanted `%s`; found `%s`",
-			c.Author,
-			other.Author,
-		)
-	}
-
-	if c.Parent != other.Parent {
-		return fmt.Errorf(
-			"Comment.Parent: wanted `%s`; found `%s`",
-			c.Parent,
-			other.Parent,
-		)
-	}
-
-	if c.Body != other.Body {
-		return fmt.Errorf(
-			"Comment.Body: wanted `%s`; found `%s`",
-			c.Body,
-			other.Body,
-		)
-	}
-
-	if c.Created != other.Created {
-		return fmt.Errorf(
-			"Comment.Created: wanted `%s`; found `%s`",
-			c.Created,
-			other.Created,
-		)
-	}
-
-	if c.Modified != other.Modified {
-		return fmt.Errorf(
-			"Comment.Modified: wanted `%s`; found `%s`",
-			c.Modified,
-			other.Modified,
-		)
-	}
-
-	return nil
-}
-
 type Wanted interface {
 	Compare([]byte) error
-}
-
-func (wanted *Comment) Compare(data []byte) error {
-	var other Comment
-	if err := json.Unmarshal(data, &other); err != nil {
-		return fmt.Errorf("unmarshaling `Comment`: %w", err)
-	}
-	return wanted.compare(&other)
 }
 
 func (wanted *HTTPError) Compare(data []byte) error {

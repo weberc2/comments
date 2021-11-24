@@ -7,6 +7,7 @@ import (
 	"html"
 	"time"
 
+	"github.com/weberc2/comments/pkg/types"
 	pz "github.com/weberc2/httpeasy"
 )
 
@@ -26,12 +27,12 @@ var (
 )
 
 type CommentsService struct {
-	Comments CommentsStore
+	Comments types.CommentsStore
 	TimeFunc func() time.Time
 }
 
 func (cs *CommentsService) PutComment(r pz.Request) pz.Response {
-	var c Comment
+	var c types.Comment
 	if err := r.JSON(&c); err != nil {
 		return pz.BadRequest(pz.String("Malformed `Comment` JSON"), e{err})
 	}
@@ -60,9 +61,9 @@ func (cs *CommentsService) PutComment(r pz.Request) pz.Response {
 			)},
 		)
 	}
-	c.Post = PostID(r.Vars["post-id"])
+	c.Post = types.PostID(r.Vars["post-id"])
 	c.Body = html.EscapeString(c.Body)
-	c.Author = UserID(r.Headers.Get("User"))
+	c.Author = types.UserID(r.Headers.Get("User"))
 	c.Created = cs.TimeFunc().UTC()
 	c.Modified = c.Created
 	comment, err := cs.Comments.Put(&c)
@@ -71,7 +72,7 @@ func (cs *CommentsService) PutComment(r pz.Request) pz.Response {
 	}
 	return pz.Created(pz.JSON(comment), struct {
 		Message string
-		Comment *Comment
+		Comment *types.Comment
 	}{
 		Message: "Created comment",
 		Comment: comment,
@@ -79,13 +80,16 @@ func (cs *CommentsService) PutComment(r pz.Request) pz.Response {
 }
 
 func (cs *CommentsService) PostComments(r pz.Request) pz.Response {
-	var parent CommentID
+	var parent types.CommentID
 	if commentID := r.Vars["comment-id"]; commentID != "toplevel" {
-		parent = CommentID(commentID)
+		parent = types.CommentID(commentID)
 	}
-	comments, err := cs.Comments.Replies(PostID(r.Vars["post-id"]), parent)
+	comments, err := cs.Comments.Replies(
+		types.PostID(r.Vars["post-id"]),
+		parent,
+	)
 	if err != nil {
-		var c *CommentNotFoundErr
+		var c *types.CommentNotFoundErr
 		if errors.As(err, &c) {
 			return pz.NotFound(
 				pz.Stringf(
@@ -109,11 +113,11 @@ func (cs *CommentsService) PostComments(r pz.Request) pz.Response {
 
 func (cs *CommentsService) GetComment(r pz.Request) pz.Response {
 	comment, err := cs.Comments.Comment(
-		PostID(r.Vars["post-id"]),
-		CommentID(r.Vars["comment-id"]),
+		types.PostID(r.Vars["post-id"]),
+		types.CommentID(r.Vars["comment-id"]),
 	)
 	if err != nil {
-		var c *CommentNotFoundErr
+		var c *types.CommentNotFoundErr
 		if errors.As(err, &c) {
 			return pz.NotFound(
 				pz.Stringf(
