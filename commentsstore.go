@@ -15,7 +15,7 @@ func (err *CommentNotFoundErr) Error() string {
 	)
 }
 
-type CommentStore interface {
+type CommentsStore interface {
 	Put(*Comment) (*Comment, error)
 	Comment(PostID, CommentID) (*Comment, error)
 	Replies(PostID, CommentID) ([]*Comment, error)

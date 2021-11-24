@@ -18,7 +18,7 @@ func (psf postStoreFake) Exists(post PostID) error {
 
 func TestCommentStore_Put_ParentNotFound(t *testing.T) {
 	// Given a comment store with a post called "my-post"
-	commentStore := ObjectCommentStore{
+	commentStore := ObjectCommentsStore{
 		ObjectStore: objectStoreFake{},
 		PostStore:   postStoreFake{"my-post"},
 		IDFunc:      func() CommentID { return "" },
@@ -46,7 +46,7 @@ func TestCommentStore_Put_ParentNotFound(t *testing.T) {
 
 func TestCommentStore_Put_PostNotFound(t *testing.T) {
 	// Given a comment store with no posts
-	commentStore := ObjectCommentStore{
+	commentStore := ObjectCommentsStore{
 		ObjectStore: objectStoreFake{},
 		PostStore:   postStoreFake{},
 		IDFunc:      func() CommentID { return "" },
@@ -68,7 +68,7 @@ func TestCommentStore_Put_PostNotFound(t *testing.T) {
 
 func TestCOmmentStore_ListComments_PostNotFound(t *testing.T) {
 	// Given a comment store with no posts
-	commentStore := ObjectCommentStore{
+	commentStore := ObjectCommentsStore{
 		ObjectStore: objectStoreFake{},
 		PostStore:   postStoreFake{},
 		IDFunc:      func() CommentID { return "" },

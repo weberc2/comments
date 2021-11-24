@@ -26,7 +26,7 @@ var (
 )
 
 type CommentsService struct {
-	Comments CommentStore
+	Comments CommentsStore
 	TimeFunc func() time.Time
 }
 

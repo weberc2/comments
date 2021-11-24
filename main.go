@@ -82,7 +82,7 @@ func main() {
 	}
 
 	commentsService := CommentsService{
-		Comments: &ObjectCommentStore{
+		Comments: &ObjectCommentsStore{
 			Bucket:      bucket,
 			Prefix:      "",
 			ObjectStore: &S3ObjectStore{s3.New(sess)},

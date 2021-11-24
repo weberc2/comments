@@ -21,7 +21,7 @@ type PostStore interface {
 	Exists(PostID) error
 }
 
-type ObjectCommentStore struct {
+type ObjectCommentsStore struct {
 	ObjectStore ObjectStore
 	PostStore   PostStore
 	Bucket      string
@@ -29,7 +29,7 @@ type ObjectCommentStore struct {
 	IDFunc      func() CommentID
 }
 
-func (ocs *ObjectCommentStore) putObject(path string, data []byte) error {
+func (ocs *ObjectCommentsStore) putObject(path string, data []byte) error {
 	if err := ocs.ObjectStore.PutObject(
 		ocs.Bucket,
 		filepath.Join(ocs.Prefix, path),
@@ -40,7 +40,7 @@ func (ocs *ObjectCommentStore) putObject(path string, data []byte) error {
 	return nil
 }
 
-func (ocs *ObjectCommentStore) getObject(key string) ([]byte, error) {
+func (ocs *ObjectCommentsStore) getObject(key string) ([]byte, error) {
 	body, err := ocs.ObjectStore.GetObject(
 		ocs.Bucket,
 		filepath.Join(ocs.Prefix, key),
@@ -56,7 +56,7 @@ func (ocs *ObjectCommentStore) getObject(key string) ([]byte, error) {
 	return data, nil
 }
 
-func (ocs *ObjectCommentStore) putComment(c *Comment) error {
+func (ocs *ObjectCommentsStore) putComment(c *Comment) error {
 	data, err := json.Marshal(&c)
 	if err != nil {
 		return fmt.Errorf("marshaling comment: %w", err)
@@ -80,7 +80,7 @@ func (ocs *ObjectCommentStore) putComment(c *Comment) error {
 	return nil
 }
 
-func (ocs *ObjectCommentStore) putParentLink(c *Comment) error {
+func (ocs *ObjectCommentsStore) putParentLink(c *Comment) error {
 	parent := c.Parent
 	if c.Parent == "" {
 		parent = "__toplevel__"
@@ -91,7 +91,7 @@ func (ocs *ObjectCommentStore) putParentLink(c *Comment) error {
 	)
 }
 
-func (ocs *ObjectCommentStore) Put(c *Comment) (*Comment, error) {
+func (ocs *ObjectCommentsStore) Put(c *Comment) (*Comment, error) {
 	cp := *c
 	cp.ID = ocs.IDFunc()
 	if err := ocs.putComment(&cp); err != nil {
@@ -103,7 +103,7 @@ func (ocs *ObjectCommentStore) Put(c *Comment) (*Comment, error) {
 	return &cp, nil
 }
 
-func (ocs *ObjectCommentStore) listObjects(prefix string) ([]string, error) {
+func (ocs *ObjectCommentsStore) listObjects(prefix string) ([]string, error) {
 	entries, err := ocs.ObjectStore.ListObjects(
 		ocs.Bucket,
 		filepath.Join(ocs.Prefix, prefix),
@@ -114,7 +114,7 @@ func (ocs *ObjectCommentStore) listObjects(prefix string) ([]string, error) {
 	return entries, nil
 }
 
-func (ocs *ObjectCommentStore) getComment(key string) (Comment, error) {
+func (ocs *ObjectCommentsStore) getComment(key string) (Comment, error) {
 	data, err := ocs.getObject(key)
 	if err != nil {
 		return Comment{}, fmt.Errorf("getting object: %w", err)
@@ -126,7 +126,7 @@ func (ocs *ObjectCommentStore) getComment(key string) (Comment, error) {
 	return c, nil
 }
 
-func (ocs *ObjectCommentStore) Comment(
+func (ocs *ObjectCommentsStore) Comment(
 	post PostID,
 	comment CommentID,
 ) (*Comment, error) {
@@ -145,7 +145,7 @@ func (ocs *ObjectCommentStore) Comment(
 	return &c, nil
 }
 
-func (ocs *ObjectCommentStore) Replies(
+func (ocs *ObjectCommentsStore) Replies(
 	post PostID,
 	comment CommentID,
 ) ([]*Comment, error) {
@@ -179,7 +179,7 @@ func (ocs *ObjectCommentStore) Replies(
 	return comments, nil
 }
 
-func (ocs *ObjectCommentStore) Delete(post PostID, comment CommentID) error {
+func (ocs *ObjectCommentsStore) Delete(post PostID, comment CommentID) error {
 	// To avoid dangling pointers, delete the pointer first and then the
 	// comment object itself.
 
