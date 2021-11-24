@@ -16,12 +16,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/weberc2/auth/pkg/client"
 	"github.com/weberc2/comments/pkg/comments"
+	"github.com/weberc2/comments/pkg/objectstore"
+	"github.com/weberc2/comments/pkg/types"
 	pz "github.com/weberc2/httpeasy"
 )
 
 type noopPostStore struct{}
 
-func (nps noopPostStore) Exists(comments.PostID) error { return nil }
+func (nps noopPostStore) Exists(types.PostID) error { return nil }
 
 func main() {
 	addr := os.Getenv("ADDR")
@@ -69,16 +71,18 @@ func main() {
 	}
 
 	commentsService := comments.CommentsService{
-		Comments: &comments.ObjectCommentsStore{
-			Bucket:      bucket,
-			Prefix:      "",
-			ObjectStore: &comments.S3ObjectStore{Client: s3.New(sess)},
-			PostStore:   noopPostStore{},
-			IDFunc: func() comments.CommentID {
-				return comments.CommentID(uuid.NewString())
+		Comments: comments.CommentsModel{
+			CommentsStore: &comments.ObjectCommentsStore{
+				Bucket:      bucket,
+				Prefix:      "",
+				ObjectStore: &objectstore.S3ObjectStore{Client: s3.New(sess)},
+				PostStore:   noopPostStore{},
 			},
+			IDFunc: func() types.CommentID {
+				return types.CommentID(uuid.NewString())
+			},
+			TimeFunc: time.Now,
 		},
-		TimeFunc: time.Now,
 	}
 
 	webServer := comments.WebServer{
@@ -120,6 +124,11 @@ func main() {
 			Method:  "GET",
 			Path:    "/posts/{post-id}/comments/{comment-id}/delete-confirm",
 			Handler: auth.AuthN(&webServerAuth, webServer.DeleteConfirm),
+		},
+		pz.Route{
+			Method:  "GET",
+			Path:    "/posts/{post-id}/comments/{comment-id}/delete",
+			Handler: auth.AuthN(&webServerAuth, webServer.Delete),
 		},
 	))
 }
