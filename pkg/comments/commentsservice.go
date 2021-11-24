@@ -1,74 +1,41 @@
 package comments
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
-	"html"
 	"time"
 
 	"github.com/weberc2/comments/pkg/types"
 	pz "github.com/weberc2/httpeasy"
 )
 
-const (
-	bodySizeMin = 8
-	bodySizeMax = 2056
-)
-
-type HTTPError struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-}
-
-var (
-	ErrBodyTooShort = HTTPError{400, "Comment body too short"}
-	ErrBodyTooLong  = HTTPError{400, "Comment body too long"}
-)
-
 type CommentsService struct {
-	Comments types.CommentsStore
+	Comments CommentsModel
 	TimeFunc func() time.Time
 }
 
 func (cs *CommentsService) PutComment(r pz.Request) pz.Response {
 	var c types.Comment
 	if err := r.JSON(&c); err != nil {
-		return pz.BadRequest(pz.String("Malformed `Comment` JSON"), e{err})
+		return pz.BadRequest(
+			pz.String("Malformed `Comment` JSON"),
+			struct {
+				Error string `json:"error"`
+			}{
+				Error: err.Error(),
+			},
+		)
 	}
-	const bodySizeMin = 8
 
 	type msg struct {
 		Message string
 	}
-	if len(c.Body) < bodySizeMin {
-		return pz.BadRequest(
-			pz.JSON(ErrBodyTooShort),
-			msg{fmt.Sprintf(
-				"wanted len(body) >= %d; found %d",
-				bodySizeMin,
-				len(c.Body),
-			)},
-		)
-	}
-	if len(c.Body) > bodySizeMax {
-		return pz.BadRequest(
-			pz.JSON(ErrBodyTooLong),
-			msg{fmt.Sprintf(
-				"wanted len(body) <= %d; found %d",
-				bodySizeMax,
-				len(c.Body),
-			)},
-		)
-	}
 	c.Post = types.PostID(r.Vars["post-id"])
-	c.Body = html.EscapeString(c.Body)
 	c.Author = types.UserID(r.Headers.Get("User"))
 	c.Created = cs.TimeFunc().UTC()
 	c.Modified = c.Created
 	comment, err := cs.Comments.Put(&c)
 	if err != nil {
-		return pz.InternalServerError(e{err})
+		return handle("putting comment", err)
 	}
 	return pz.Created(pz.JSON(comment), struct {
 		Message string
@@ -89,24 +56,7 @@ func (cs *CommentsService) PostComments(r pz.Request) pz.Response {
 		parent,
 	)
 	if err != nil {
-		var c *types.CommentNotFoundErr
-		if errors.As(err, &c) {
-			return pz.NotFound(
-				pz.Stringf(
-					"comment '%s' not found with post '%s'",
-					r.Vars["comment-id"],
-					r.Vars["post-id"],
-				),
-				struct {
-					Message string
-					Err     error
-				}{
-					Message: "comment not found",
-					Err:     err,
-				},
-			)
-		}
-		return pz.InternalServerError(e{err})
+		return handle("retrieving comment replies", err)
 	}
 	return pz.Ok(pz.JSON(comments))
 }
@@ -117,32 +67,37 @@ func (cs *CommentsService) GetComment(r pz.Request) pz.Response {
 		types.CommentID(r.Vars["comment-id"]),
 	)
 	if err != nil {
-		var c *types.CommentNotFoundErr
-		if errors.As(err, &c) {
-			return pz.NotFound(
-				pz.Stringf(
-					"comment '%s' not found with post '%s'",
-					r.Vars["comment-id"],
-					r.Vars["post-id"],
-				),
-				struct {
-					Message string
-					Err     error
-				}{
-					Message: "comment not found",
-					Err:     err,
-				},
-			)
-		}
-		return pz.InternalServerError(e{err})
+		return handle("retrieving comment", err)
 	}
 	return pz.Ok(pz.JSON(comment))
 }
 
-type e struct {
-	err error
-}
+func handle(message string, err error, logging ...interface{}) pz.Response {
+	logging = append(logging, struct {
+		Message string `json:"message"`
+		Error   string `json:"error"`
+	}{
+		Message: message,
+		Error:   err.Error(),
+	})
 
-func (e e) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct{ Err string }{e.err.Error()})
+	cause := err
+	for {
+		if unwrapped := errors.Unwrap(cause); unwrapped != nil {
+			cause = unwrapped
+			continue
+		}
+		break
+	}
+
+	if e, ok := cause.(types.Error); ok {
+		httpErr := e.HTTPError()
+		return pz.Response{
+			Status:  httpErr.Status,
+			Data:    pz.JSON(httpErr),
+			Logging: logging,
+		}
+	}
+
+	return pz.InternalServerError(logging)
 }

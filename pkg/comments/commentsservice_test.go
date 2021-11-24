@@ -20,7 +20,7 @@ func TestPutComment(t *testing.T) {
 		name         string
 		input        string
 		wantedStatus int
-		wantedBody   Wanted
+		wantedBody   WantedData
 	}{
 		{
 			name:         "creates comment",
@@ -60,42 +60,24 @@ func TestPutComment(t *testing.T) {
 			},
 		},
 		{
-			name:         "minimum body size",
+			name:         "errors serialized correctly",
 			input:        `{"body": ""}`,
-			wantedStatus: http.StatusBadRequest,
-			wantedBody:   &ErrBodyTooShort,
-		},
-		{
-			name: "maximum body size",
-			input: fmt.Sprintf(
-				`{"body": "%s"}`,
-				strings.Repeat("s", bodySizeMax+1),
-			),
-			wantedStatus: http.StatusBadRequest,
-			wantedBody:   &ErrBodyTooLong,
-		},
-		{
-			name:         "html escape",
-			input:        `{"body": "<script></script>"}`,
-			wantedStatus: http.StatusCreated,
-			wantedBody: &types.Comment{
-				ID:       "comment",
-				Author:   "user",
-				Body:     "&lt;script&gt;&lt;/script&gt;",
-				Parent:   "",
-				Created:  now,
-				Modified: now,
-			},
+			wantedStatus: 400,
+			wantedBody:   ErrBodyTooShort,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			commentsService := CommentsService{
-				Comments: &ObjectCommentsStore{
-					ObjectStore: testsupport.ObjectStoreFake{},
-					PostStore:   &postStoreFake{"post"},
-					Bucket:      "bucket",
-					Prefix:      "prefix",
-					IDFunc:      func() types.CommentID { return "comment" },
+				Comments: CommentsModel{
+					CommentsStore: &ObjectCommentsStore{
+						ObjectStore: testsupport.ObjectStoreFake{},
+						PostStore:   &postStoreFake{"post"},
+						Bucket:      "bucket",
+						Prefix:      "prefix",
+						IDFunc:      func() types.CommentID { return "comment" },
+					},
+					TimeFunc: func() time.Time { return now },
+					IDFunc:   func() types.CommentID { return "comment" },
 				},
 				TimeFunc: func() time.Time { return now },
 			}
@@ -131,7 +113,7 @@ func TestPutComment(t *testing.T) {
 				t.Fatalf("Response.Data: reading serializer: %v", err)
 			}
 
-			if err := testCase.wantedBody.Compare(data); err != nil {
+			if err := testCase.wantedBody.CompareData(data); err != nil {
 				t.Errorf("Response.Data: %v", err)
 				t.Logf("Actual body: %s", data)
 			}
@@ -153,28 +135,6 @@ func readAll(s pz.Serializer) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-type Wanted interface {
-	Compare([]byte) error
-}
-
-func (wanted *HTTPError) Compare(data []byte) error {
-	var other HTTPError
-	if err := json.Unmarshal(data, &other); err != nil {
-		return fmt.Errorf("unmarshaling `HTTPError`: %w", err)
-	}
-	if wanted.Status != other.Status {
-		return fmt.Errorf(
-			"HTTPError.Status: wanted `%d`; found `%d`",
-			wanted.Status,
-			other.Status,
-		)
-	}
-	if wanted.Message != other.Message {
-		return fmt.Errorf(
-			"HTTPError.Message: wanted `%s`; found `%s`",
-			wanted.Message,
-			other.Message,
-		)
-	}
-	return nil
+type WantedData interface {
+	CompareData([]byte) error
 }

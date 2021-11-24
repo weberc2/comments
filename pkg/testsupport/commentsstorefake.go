@@ -1,6 +1,8 @@
 package testsupport
 
 import (
+	"fmt"
+
 	"github.com/weberc2/comments/pkg/types"
 )
 
@@ -9,6 +11,10 @@ type CommentsStoreFake map[types.PostID]map[types.CommentID]*types.Comment
 func (csf CommentsStoreFake) Put(
 	c *types.Comment,
 ) (*types.Comment, error) {
+	if postComments := csf[c.Post]; postComments == nil {
+		csf[c.Post] = map[types.CommentID]*types.Comment{c.ID: c}
+		return c, nil
+	}
 	csf[c.Post][c.ID] = c
 	return c, nil
 }
@@ -73,4 +79,28 @@ func (csf CommentsStoreFake) Delete(
 	}
 	delete(postComments, comment)
 	return nil
+}
+
+func (csf CommentsStoreFake) Contains(comments ...*types.Comment) error {
+	for i, comment := range comments {
+		found, err := csf.Comment(comment.Post, comment.ID)
+		if err != nil {
+			return fmt.Errorf("index %d: %w", i, err)
+		}
+		if err := comment.Compare(found); err != nil {
+			return fmt.Errorf("index %d: %w", i, err)
+		}
+
+	}
+	return nil
+}
+
+func (csf CommentsStoreFake) Comments() []*types.Comment {
+	var out []*types.Comment
+	for _, comments := range csf {
+		for _, comment := range comments {
+			out = append(out, comment)
+		}
+	}
+	return out
 }

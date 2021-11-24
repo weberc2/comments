@@ -7,6 +7,10 @@ type CommentNotFoundErr struct {
 	Comment CommentID
 }
 
+func (err *CommentNotFoundErr) HTTPError() HTTPError {
+	return HTTPError{Status: 404, Message: "comment not found"}
+}
+
 func (err *CommentNotFoundErr) Error() string {
 	return fmt.Sprintf(
 		"comment not found: post=%s comment=%s",

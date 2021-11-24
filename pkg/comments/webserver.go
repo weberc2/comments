@@ -20,7 +20,7 @@ type WebServer struct {
 	LoginURL  string
 	LogoutURL string
 	BaseURL   string
-	Comments  types.CommentsStore
+	Comments  CommentsModel
 }
 
 func (ws *WebServer) Replies(r pz.Request) pz.Response {

@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -20,7 +21,7 @@ type Comment struct {
 	Body     string    `json:"body"`
 }
 
-func (c *Comment) compare(other *Comment) error {
+func (c *Comment) Compare(other *Comment) error {
 	if c == nil && other == nil {
 		return nil
 	}
@@ -84,10 +85,43 @@ func (c *Comment) compare(other *Comment) error {
 	return nil
 }
 
-func (wanted *Comment) Compare(data []byte) error {
+func (wanted *Comment) CompareData(data []byte) error {
 	var other Comment
 	if err := json.Unmarshal(data, &other); err != nil {
 		return fmt.Errorf("unmarshaling `Comment`: %w", err)
 	}
-	return wanted.compare(&other)
+	return wanted.Compare(&other)
+}
+
+func CompareComments(wanted, found []*Comment) error {
+	if len(wanted) < len(found) {
+		return fmt.Errorf(
+			"stored comments: len `%d`; found len `%d`",
+			len(wanted),
+			len(found),
+		)
+	}
+
+	sortComments(wanted)
+	sortComments(found)
+
+	for i := range wanted {
+		if err := wanted[i].Compare(wanted[i]); err != nil {
+			return fmt.Errorf("index %d: %w", i, err)
+		}
+	}
+
+	return nil
+}
+
+func sortComments(comments []*Comment) {
+	sort.Slice(comments, func(i, j int) bool {
+		if comments[i].Post < comments[j].Post {
+			return true
+		}
+		if comments[i].Post == comments[j].Post {
+			return comments[i].ID < comments[j].ID
+		}
+		return false
+	})
 }
