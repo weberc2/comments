@@ -88,7 +88,7 @@ func TestPutComment(t *testing.T) {
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			commentsService := CommentsService{
-				Comments: CommentStore{
+				Comments: &ObjectCommentStore{
 					ObjectStore: objectStoreFake{},
 					PostStore:   &postStoreFake{"post"},
 					Bucket:      "bucket",

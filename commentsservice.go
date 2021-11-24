@@ -65,17 +65,16 @@ func (cs *CommentsService) PutComment(r pz.Request) pz.Response {
 	c.Author = UserID(r.Headers.Get("User"))
 	c.Created = cs.TimeFunc().UTC()
 	c.Modified = c.Created
-	id, err := cs.Comments.PutComment(&c)
+	comment, err := cs.Comments.Put(&c)
 	if err != nil {
 		return pz.InternalServerError(e{err})
 	}
-	c.ID = id
-	return pz.Created(pz.JSON(&c), struct {
+	return pz.Created(pz.JSON(comment), struct {
 		Message string
-		Comment CommentID
+		Comment *Comment
 	}{
 		Message: "Created comment",
-		Comment: id,
+		Comment: comment,
 	})
 }
 

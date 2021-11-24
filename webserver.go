@@ -51,13 +51,13 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 
 	return pz.Ok(
 		pz.HTMLTemplate(repliesTemplate, struct {
-			LoginURL  string    `json:"loginURL"`
-			LogoutURL string    `json:"logoutURL"`
-			BaseURL   string    `json:"baseURL"`
-			Post      PostID    `json:"post"`
-			Parent    CommentID `json:"parent"`
-			Replies   []Comment `json:"replies"`
-			User      UserID    `json:"user"`
+			LoginURL  string     `json:"loginURL"`
+			LogoutURL string     `json:"logoutURL"`
+			BaseURL   string     `json:"baseURL"`
+			Post      PostID     `json:"post"`
+			Parent    CommentID  `json:"parent"`
+			Replies   []*Comment `json:"replies"`
+			User      UserID     `json:"user"`
 		}{
 			LoginURL:  ws.LoginURL,
 			LogoutURL: ws.LogoutURL,
@@ -73,15 +73,15 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 
 func (ws *WebServer) DeleteConfirm(r pz.Request) pz.Response {
 	context := struct {
-		BaseURL string  `json:"baseURL"`
-		User    UserID  `json:"user"`
-		Post    PostID  `json:"post"`
-		Comment Comment `json:"comment"`
-		Error   string  `json:"error,omitempty"`
+		BaseURL string   `json:"baseURL"`
+		User    UserID   `json:"user"`
+		Post    PostID   `json:"post"`
+		Comment *Comment `json:"comment"`
+		Error   string   `json:"error,omitempty"`
 	}{
 		BaseURL: ws.BaseURL,
 		Post:    PostID(r.Vars["post-id"]),
-		Comment: Comment{ID: CommentID(r.Vars["comment-id"])},
+		Comment: &Comment{ID: CommentID(r.Vars["comment-id"])},
 		User:    UserID(r.Headers.Get("User")), // empty if unauthorized
 	}
 

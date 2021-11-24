@@ -16,16 +16,16 @@ func (psf postStoreFake) Exists(post PostID) error {
 	return &PostNotFoundErr{post}
 }
 
-func TestCommentStore_PutComment_ParentNotFound(t *testing.T) {
+func TestCommentStore_Put_ParentNotFound(t *testing.T) {
 	// Given a comment store with a post called "my-post"
-	commentStore := CommentStore{
+	commentStore := ObjectCommentStore{
 		ObjectStore: objectStoreFake{},
 		PostStore:   postStoreFake{"my-post"},
 		IDFunc:      func() CommentID { return "" },
 	}
 
 	// When a comment is added to "my-post" with a `Parent` that doesn't exist
-	_, err := commentStore.PutComment(&Comment{
+	_, err := commentStore.Put(&Comment{
 		Post:   "my-post",
 		Parent: "doesnt-exist",
 	})
@@ -44,16 +44,16 @@ func TestCommentStore_PutComment_ParentNotFound(t *testing.T) {
 	)
 }
 
-func TestCommentStore_PutComment_PostNotFound(t *testing.T) {
+func TestCommentStore_Put_PostNotFound(t *testing.T) {
 	// Given a comment store with no posts
-	commentStore := CommentStore{
+	commentStore := ObjectCommentStore{
 		ObjectStore: objectStoreFake{},
 		PostStore:   postStoreFake{},
 		IDFunc:      func() CommentID { return "" },
 	}
 
 	// When a comment is added on an unknown post
-	_, err := commentStore.PutComment(&Comment{Post: "my-post"})
+	_, err := commentStore.Put(&Comment{Post: "my-post"})
 
 	// Then expect a `PostNotFoundErr` is returned
 	var pnfe *PostNotFoundErr
@@ -68,7 +68,7 @@ func TestCommentStore_PutComment_PostNotFound(t *testing.T) {
 
 func TestCOmmentStore_ListComments_PostNotFound(t *testing.T) {
 	// Given a comment store with no posts
-	commentStore := CommentStore{
+	commentStore := ObjectCommentStore{
 		ObjectStore: objectStoreFake{},
 		PostStore:   postStoreFake{},
 		IDFunc:      func() CommentID { return "" },
