@@ -1,15 +1,15 @@
 package objectstore
 
 import (
-	"bytes"
-	"io"
 	"io/ioutil"
 	"strings"
 	"testing"
+
+	"github.com/weberc2/comments/pkg/testsupport"
 )
 
 func TestGzipObjectStore(t *testing.T) {
-	objectStore := GzipObjectStore{objectStoreFake{}}
+	objectStore := GzipObjectStore{testsupport.ObjectStoreFake{}}
 	if err := objectStore.PutObject(
 		"my-bucket",
 		"my-key",

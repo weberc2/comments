@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/weberc2/comments/pkg/types"
 )
 
 type S3ObjectStore struct {
@@ -36,7 +37,7 @@ func (os *S3ObjectStore) GetObject(bucket, key string) (io.ReadCloser, error) {
 	if err != nil {
 		if err, ok := err.(awserr.Error); ok {
 			if err.Code() == s3.ErrCodeNoSuchKey {
-				return nil, &ObjectNotFoundErr{bucket, key}
+				return nil, &types.ObjectNotFoundErr{Bucket: bucket, Key: key}
 			}
 		}
 		return nil, fmt.Errorf(

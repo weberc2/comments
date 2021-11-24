@@ -5,10 +5,12 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+
+	"github.com/weberc2/comments/pkg/types"
 )
 
 type GzipObjectStore struct {
-	ObjectStore
+	types.ObjectStore
 }
 
 func (os *GzipObjectStore) PutObject(bucket, key string, data io.ReadSeeker) error {
