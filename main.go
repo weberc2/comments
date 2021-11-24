@@ -15,26 +15,13 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/uuid"
 	"github.com/weberc2/auth/pkg/client"
+	"github.com/weberc2/comments/pkg/comments"
 	pz "github.com/weberc2/httpeasy"
 )
 
-type PostID string
-type CommentID string
-type UserID string
-
-type Comment struct {
-	ID       CommentID `json:"id"`
-	Post     PostID    `json:"post"`
-	Parent   CommentID `json:"parent"`
-	Author   UserID    `json:"author"`
-	Created  time.Time `json:"created"`
-	Modified time.Time `json:"modified"`
-	Body     string    `json:"body"`
-}
-
 type noopPostStore struct{}
 
-func (nps noopPostStore) Exists(PostID) error { return nil }
+func (nps noopPostStore) Exists(comments.PostID) error { return nil }
 
 func main() {
 	addr := os.Getenv("ADDR")
@@ -81,29 +68,31 @@ func main() {
 		log.Fatalf("creating AWS session: %v", err)
 	}
 
-	commentsService := CommentsService{
-		Comments: &ObjectCommentsStore{
+	commentsService := comments.CommentsService{
+		Comments: &comments.ObjectCommentsStore{
 			Bucket:      bucket,
 			Prefix:      "",
-			ObjectStore: &S3ObjectStore{s3.New(sess)},
+			ObjectStore: &comments.S3ObjectStore{Client: s3.New(sess)},
 			PostStore:   noopPostStore{},
-			IDFunc: func() CommentID {
-				return CommentID(uuid.NewString())
+			IDFunc: func() comments.CommentID {
+				return comments.CommentID(uuid.NewString())
 			},
 		},
 		TimeFunc: time.Now,
 	}
 
-	webServer := WebServer{
+	webServer := comments.WebServer{
 		LoginURL:  loginURL,
 		LogoutURL: logoutURL,
 		BaseURL:   baseURL,
 		Comments:  commentsService.Comments,
 	}
 
-	webServerAuth := AuthTypeWebServer{Auth: client.DefaultClient(authBaseURL)}
-	apiAuth := AuthTypeClientProgram{}
-	auth := Authenticator{Key: key}
+	webServerAuth := comments.AuthTypeWebServer{
+		Auth: client.DefaultClient(authBaseURL),
+	}
+	apiAuth := comments.AuthTypeClientProgram{}
+	auth := comments.Authenticator{Key: key}
 
 	http.ListenAndServe(addr, pz.Register(
 		pz.JSONLog(os.Stderr),
