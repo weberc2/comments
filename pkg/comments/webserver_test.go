@@ -17,15 +17,19 @@ func TestDelete(t *testing.T) {
 		name           string
 		post           types.PostID
 		comment        types.CommentID
+		redirect       string
+		user           string
 		store          testsupport.CommentsStoreFake
 		wantedStatus   int
 		wantedComments []*types.Comment
 		wantedLocation string
 	}{
 		{
-			name:    "delete",
-			post:    "post",
-			comment: "comment",
+			name:     "delete",
+			post:     "post",
+			comment:  "comment",
+			redirect: "foo",
+			user:     "adam",
 			store: testsupport.CommentsStoreFake{
 				"post": {
 					"comment": &types.Comment{
@@ -39,6 +43,50 @@ func TestDelete(t *testing.T) {
 			wantedStatus:   http.StatusTemporaryRedirect,
 			wantedComments: nil,
 			wantedLocation: "https://comments.example.org/foo",
+		},
+		{
+			name:     "redirects to baseurl on redirect parse err",
+			post:     "post",
+			comment:  "comment",
+			redirect: "!@#$%^&*()",
+			user:     "adam",
+			store: testsupport.CommentsStoreFake{
+				"post": {
+					"comment": &types.Comment{
+						Post:   "post",
+						ID:     "comment",
+						Author: "adam",
+						Body:   "hello, world",
+					},
+				},
+			},
+			wantedStatus:   http.StatusTemporaryRedirect,
+			wantedComments: nil,
+			wantedLocation: "https://comments.example.org/",
+		},
+		{
+			name:    "user must be author",
+			post:    "post",
+			comment: "comment",
+			user:    "eve",
+			store: testsupport.CommentsStoreFake{
+				"post": {
+					"comment": &types.Comment{
+						Post:   "post",
+						ID:     "comment",
+						Author: "adam",
+						Body:   "hello, world",
+					},
+				},
+			},
+			// expect that the comment wasn't deleted
+			wantedComments: []*types.Comment{{
+				Post:   "post",
+				ID:     "comment",
+				Author: "adam",
+				Body:   "hello, world",
+			}},
+			wantedStatus: http.StatusUnauthorized,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -54,11 +102,12 @@ func TestDelete(t *testing.T) {
 			}
 
 			rsp := webServer.Delete(pz.Request{
-				URL: &url.URL{RawQuery: "redirect=foo"},
+				URL: &url.URL{RawQuery: "redirect=" + testCase.redirect},
 				Vars: map[string]string{
 					"post-id":    "post",
 					"comment-id": "comment",
 				},
+				Headers: http.Header{"User": []string{testCase.user}},
 			})
 
 			if rsp.Status != testCase.wantedStatus {

@@ -167,27 +167,32 @@ func (ws *WebServer) DeleteConfirm(r pz.Request) pz.Response {
 
 func (ws *WebServer) Delete(r pz.Request) pz.Response {
 	context := struct {
-		Message  string          `json:"message"`
+		Message  string          `json:"message,omitempty"`
 		Post     types.PostID    `json:"post"`
 		Comment  types.CommentID `json:"comment"`
+		User     types.UserID    `json:"user"`
 		Redirect string          `json:"redirect"`
 		Error    string          `json:"error,omitempty"`
 	}{
 		Post:     types.PostID(r.Vars["post-id"]),
 		Comment:  types.CommentID(r.Vars["comment-id"]),
+		User:     types.UserID(r.Headers.Get("User")),
 		Redirect: ws.BaseURL + "/" + r.URL.Query().Get("redirect"),
 	}
 
+	comment, err := ws.Comments.Comment(context.Post, context.Comment)
+	if err != nil {
+		return handle("fetching comment", err, context)
+	}
+
+	if comment.Author != context.User {
+		context.Message = "authorizing user"
+		context.Error = "user is not comment author"
+		return pz.Unauthorized(nil, context)
+	}
+
 	if err := ws.Comments.Delete(context.Post, context.Comment); err != nil {
-		var e *types.CommentNotFoundErr
-		if errors.As(err, &e) {
-			context.Message = "comment not found"
-			context.Error = err.Error()
-			return pz.NotFound(nil, context)
-		}
-		context.Message = "deleting comment"
-		context.Error = err.Error()
-		return pz.InternalServerError(context)
+		return handle("deleting comment", err, context)
 	}
 
 	if _, err := url.Parse(context.Redirect); err != nil {
