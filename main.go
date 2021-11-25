@@ -131,6 +131,11 @@ func main() {
 			Path:    "/posts/{post-id}/comments/{comment-id}/delete",
 			Handler: auth.AuthN(&webServerAuth, webServer.Delete),
 		},
+		pz.Route{
+			Method:  "GET",
+			Path:    "/posts/{post-id}/comments/{comment-id}/reply",
+			Handler: auth.AuthN(&webServerAuth, webServer.ReplyForm),
+		},
 	))
 }
 
