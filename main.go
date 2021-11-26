@@ -136,6 +136,11 @@ func main() {
 			Path:    "/posts/{post-id}/comments/{comment-id}/reply",
 			Handler: auth.AuthN(&webServerAuth, webServer.ReplyForm),
 		},
+		pz.Route{
+			Method:  "POST",
+			Path:    "/posts/{post-id}/comments/{comment-id}/reply",
+			Handler: auth.AuthN(&webServerAuth, webServer.Reply),
+		},
 	))
 }
 

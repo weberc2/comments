@@ -74,7 +74,6 @@ func TestPutComment(t *testing.T) {
 						PostStore:   &postStoreFake{"post"},
 						Bucket:      "bucket",
 						Prefix:      "prefix",
-						IDFunc:      func() types.CommentID { return "comment" },
 					},
 					TimeFunc: func() time.Time { return now },
 					IDFunc:   func() types.CommentID { return "comment" },

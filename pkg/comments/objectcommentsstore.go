@@ -28,7 +28,6 @@ type ObjectCommentsStore struct {
 	PostStore   PostStore
 	Bucket      string
 	Prefix      string
-	IDFunc      func() types.CommentID
 }
 
 func (ocs *ObjectCommentsStore) putObject(path string, data []byte) error {
@@ -95,7 +94,6 @@ func (ocs *ObjectCommentsStore) putParentLink(c *types.Comment) error {
 
 func (ocs *ObjectCommentsStore) Put(c *types.Comment) (*types.Comment, error) {
 	cp := *c
-	cp.ID = ocs.IDFunc()
 	if err := ocs.putComment(&cp); err != nil {
 		return nil, fmt.Errorf("putting comment: %w", err)
 	}

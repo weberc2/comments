@@ -24,7 +24,6 @@ func TestObjectCommentStore_Put_ParentNotFound(t *testing.T) {
 	commentStore := ObjectCommentsStore{
 		ObjectStore: testsupport.ObjectStoreFake{},
 		PostStore:   postStoreFake{"my-post"},
-		IDFunc:      func() types.CommentID { return "" },
 	}
 
 	// When a comment is added to "my-post" with a `Parent` that doesn't exist
@@ -52,7 +51,6 @@ func TestObjectCommentStore_Put_PostNotFound(t *testing.T) {
 	commentStore := ObjectCommentsStore{
 		ObjectStore: testsupport.ObjectStoreFake{},
 		PostStore:   postStoreFake{},
-		IDFunc:      func() types.CommentID { return "" },
 	}
 
 	// When a comment is added on an unknown post
@@ -74,7 +72,6 @@ func TestCOmmentStore_ListComments_PostNotFound(t *testing.T) {
 	commentStore := ObjectCommentsStore{
 		ObjectStore: testsupport.ObjectStoreFake{},
 		PostStore:   postStoreFake{},
-		IDFunc:      func() types.CommentID { return "" },
 	}
 
 	// When someone tries to list comments on a post that doesn't exist

@@ -2,7 +2,9 @@ package comments
 
 import (
 	"errors"
+	"fmt"
 	html "html/template"
+	"io/ioutil"
 	"net/url"
 
 	"github.com/weberc2/comments/pkg/types"
@@ -39,6 +41,7 @@ var repliesTemplate = html.Must(html.New("").Parse(`<html>
 {{$user := .User}}
 {{range .Replies}}
 	<div id="{{.ID}}">
+		<a id="{{.ID}}"></a>
 		<div class="comment-header">
 			<span class="author">{{.Author}}</p>
 			<span class="date">{{.Created}}</p>
@@ -182,27 +185,27 @@ func (ws *WebServer) Delete(r pz.Request) pz.Response {
 
 	comment, err := ws.Comments.Comment(context.Post, context.Comment)
 	if err != nil {
-		return handle("fetching comment", err, context)
+		return handle("fetching comment", err, &context)
 	}
 
 	if comment.Author != context.User {
 		context.Message = "authorizing user"
 		context.Error = "user is not comment author"
-		return pz.Unauthorized(nil, context)
+		return pz.Unauthorized(nil, &context)
 	}
 
 	if err := ws.Comments.Delete(context.Post, context.Comment); err != nil {
-		return handle("deleting comment", err, context)
+		return handle("deleting comment", err, &context)
 	}
 
 	if _, err := url.Parse(context.Redirect); err != nil {
 		context.Message = "error parsing redirect; redirecting to `BaseURL`"
 		context.Error = err.Error()
-		return pz.TemporaryRedirect(context.Redirect, context)
+		return pz.TemporaryRedirect(context.Redirect, &context)
 	}
 
 	context.Message = "successfully deleted comment"
-	return pz.TemporaryRedirect(context.Redirect, context)
+	return pz.TemporaryRedirect(context.Redirect, &context)
 }
 
 var replyTemplate = html.Must(html.New("").Parse(`<html>
@@ -242,10 +245,62 @@ func (ws *WebServer) ReplyForm(r pz.Request) pz.Response {
 		if err != nil {
 			context.Message = "fetching comment"
 			context.Error = err.Error()
-			return handle("fetching comment", err)
+			return handle("fetching comment", err, &context)
 		}
 		context.Comment = *comment
 	}
 
-	return pz.Ok(pz.HTMLTemplate(replyTemplate, context), context)
+	return pz.Ok(pz.HTMLTemplate(replyTemplate, &context), &context)
+}
+
+func (ws *WebServer) Reply(r pz.Request) pz.Response {
+	context := struct {
+		Message  string          `json:"message,omitempty"`
+		Post     types.PostID    `json:"post"`
+		Comment  types.CommentID `json:"comment"`
+		Author   types.UserID    `json:"author,omitempty"`
+		Redirect string          `json:"redirect,omitempty"`
+		Error    string          `json:"error,omitempty"`
+	}{
+		Post:    types.PostID(r.Vars["post-id"]),
+		Comment: types.CommentID(r.Vars["comment-id"]),
+		Author:  types.UserID(r.Headers.Get("User")),
+	}
+
+	if context.Comment == "toplevel" {
+		context.Comment = ""
+	}
+
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		context.Message = "reading request body"
+		context.Error = err.Error()
+		return pz.InternalServerError(&context)
+	}
+
+	values, err := url.ParseQuery(string(data))
+	if err != nil {
+		context.Message = "parsing form values"
+		context.Error = err.Error()
+		return pz.BadRequest(nil, &context)
+	}
+
+	c, err := ws.Comments.Put(&types.Comment{
+		Post:   context.Post,
+		Parent: context.Comment,
+		Author: context.Author,
+		Body:   values.Get("body"),
+	})
+	if err != nil {
+		return handle("creating comment", err, &context)
+	}
+
+	context.Redirect = fmt.Sprintf(
+		"%s/posts/%s/comments/toplevel/replies#%s",
+		ws.BaseURL,
+		context.Post,
+		c.ID,
+	)
+	context.Message = "successfully created comment"
+	return pz.SeeOther(context.Redirect, &context)
 }
