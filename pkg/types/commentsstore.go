@@ -7,8 +7,8 @@ type CommentNotFoundErr struct {
 	Comment CommentID
 }
 
-func (err *CommentNotFoundErr) HTTPError() HTTPError {
-	return HTTPError{Status: 404, Message: "comment not found"}
+func (err *CommentNotFoundErr) HTTPError() *HTTPError {
+	return &HTTPError{Status: 404, Message: "comment not found"}
 }
 
 func (err *CommentNotFoundErr) Error() string {
@@ -25,3 +25,7 @@ type CommentsStore interface {
 	Replies(PostID, CommentID) ([]*Comment, error)
 	Delete(PostID, CommentID) error
 }
+
+// fail compilation if `CommentNotFoundErr` doesn't satisfy the `Error`
+// interface.
+var _ Error = &CommentNotFoundErr{}

@@ -28,10 +28,13 @@ services:
     environment:
       ADDR: ":8080"
       LOGIN_URL: http://localhost:8081/login
+      LOGOUT_URL: http://localhost:8081/logout
       BASE_URL: http://localhost:8080
+      AUTH_BASE_URL: http://localhost:8081
       BUCKET: weberc2-comments
       ACCESS_KEY: "${COMMENTS_ACCESS_PUBLIC_KEY}"
       AWS_REGION: us-east-2
+      AUTH_DISABLED_USER: "${AUTH_DISABLED_USER}"
 
       # Secrets
       AWS_ACCESS_KEY_ID: "${COMMENTS_AWS_ACCESS_KEY_ID}"

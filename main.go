@@ -26,6 +26,27 @@ type noopPostStore struct{}
 
 func (nps noopPostStore) Exists(types.PostID) error { return nil }
 
+type Authenticator interface {
+	AuthN(auth.AuthType, pz.Handler) pz.Handler
+	AuthZ(auth.AuthType, pz.Handler) pz.Handler
+}
+
+type AuthDisabled string
+
+func (ad AuthDisabled) AuthN(_ auth.AuthType, h pz.Handler) pz.Handler {
+	return func(r pz.Request) pz.Response {
+		r.Headers.Add("User", string(ad))
+		return h(r)
+	}
+}
+
+func (ad AuthDisabled) AuthZ(_ auth.AuthType, h pz.Handler) pz.Handler {
+	return func(r pz.Request) pz.Response {
+		r.Headers.Add("User", string(ad))
+		return h(r)
+	}
+}
+
 func main() {
 	addr := os.Getenv("ADDR")
 	if addr == "" {
@@ -55,15 +76,6 @@ func main() {
 	bucket := os.Getenv("BUCKET")
 	if bucket == "" {
 		log.Fatal("missing required env var: BUCKET")
-	}
-
-	accessTokenPublicKey := os.Getenv("ACCESS_KEY")
-	if accessTokenPublicKey == "" {
-		log.Fatal("missing required env var: ACCESS_KEY")
-	}
-	key, err := decodeKey(accessTokenPublicKey)
-	if err != nil {
-		log.Fatalf("decoding ACCESS_KEY: %v", err)
 	}
 
 	sess, err := session.NewSession()
@@ -97,7 +109,20 @@ func main() {
 		Auth: client.DefaultClient(authBaseURL),
 	}
 	apiAuth := auth.AuthTypeClientProgram{}
-	auth := auth.Authenticator{Key: key}
+	var a Authenticator
+	if user := os.Getenv("AUTH_DISABLED_USER"); user != "" {
+		a = AuthDisabled(user)
+	} else {
+		accessTokenPublicKey := os.Getenv("ACCESS_KEY")
+		if accessTokenPublicKey == "" {
+			log.Fatal("missing required env var: ACCESS_KEY")
+		}
+		key, err := decodeKey(accessTokenPublicKey)
+		if err != nil {
+			log.Fatalf("decoding ACCESS_KEY: %v", err)
+		}
+		a = &auth.Authenticator{Key: key}
+	}
 
 	http.ListenAndServe(addr, pz.Register(
 		pz.JSONLog(os.Stderr),
@@ -109,7 +134,7 @@ func main() {
 		pz.Route{
 			Method:  "POST",
 			Path:    "/api/posts/{post-id}/comments",
-			Handler: auth.AuthN(apiAuth, commentsService.PutComment),
+			Handler: a.AuthN(apiAuth, commentsService.PutComment),
 		},
 		pz.Route{
 			Method:  "GET",
@@ -119,17 +144,17 @@ func main() {
 		pz.Route{
 			Method:  "GET",
 			Path:    "/posts/{post-id}/comments/{parent-id}/replies",
-			Handler: auth.AuthN(&webServerAuth, webServer.Replies),
+			Handler: a.AuthN(&webServerAuth, webServer.Replies),
 		},
 		pz.Route{
 			Method:  "GET",
 			Path:    "/posts/{post-id}/comments/{comment-id}/delete-confirm",
-			Handler: auth.AuthN(&webServerAuth, webServer.DeleteConfirm),
+			Handler: a.AuthN(&webServerAuth, webServer.DeleteConfirm),
 		},
 		pz.Route{
 			Method:  "GET",
 			Path:    "/posts/{post-id}/comments/{comment-id}/delete",
-			Handler: auth.AuthN(&webServerAuth, webServer.Delete),
+			Handler: a.AuthN(&webServerAuth, webServer.Delete),
 		},
 		pz.Route{
 			Method:  "GET",
