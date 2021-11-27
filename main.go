@@ -22,10 +22,6 @@ import (
 	pz "github.com/weberc2/httpeasy"
 )
 
-type noopPostStore struct{}
-
-func (nps noopPostStore) Exists(types.PostID) error { return nil }
-
 type Authenticator interface {
 	AuthN(auth.AuthType, pz.Handler) pz.Handler
 	AuthZ(auth.AuthType, pz.Handler) pz.Handler
@@ -89,7 +85,6 @@ func main() {
 				Bucket:      bucket,
 				Prefix:      "",
 				ObjectStore: &objectstore.S3ObjectStore{Client: s3.New(sess)},
-				PostStore:   noopPostStore{},
 			},
 			IDFunc: func() types.CommentID {
 				return types.CommentID(uuid.NewString())
@@ -159,12 +154,12 @@ func main() {
 		pz.Route{
 			Method:  "GET",
 			Path:    "/posts/{post-id}/comments/{comment-id}/reply",
-			Handler: auth.AuthN(&webServerAuth, webServer.ReplyForm),
+			Handler: a.AuthN(&webServerAuth, webServer.ReplyForm),
 		},
 		pz.Route{
 			Method:  "POST",
 			Path:    "/posts/{post-id}/comments/{comment-id}/reply",
-			Handler: auth.AuthN(&webServerAuth, webServer.Reply),
+			Handler: a.AuthN(&webServerAuth, webServer.Reply),
 		},
 	))
 }

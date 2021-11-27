@@ -13,19 +13,8 @@ import (
 	"github.com/weberc2/comments/pkg/types"
 )
 
-type PostNotFoundErr struct{ Post types.PostID }
-
-func (err *PostNotFoundErr) Error() string {
-	return fmt.Sprintf("post not found: %s", err.Post)
-}
-
-type PostStore interface {
-	Exists(types.PostID) error
-}
-
 type ObjectCommentsStore struct {
 	ObjectStore types.ObjectStore
-	PostStore   PostStore
 	Bucket      string
 	Prefix      string
 }
@@ -61,9 +50,6 @@ func (ocs *ObjectCommentsStore) putComment(c *types.Comment) error {
 	data, err := json.Marshal(&c)
 	if err != nil {
 		return fmt.Errorf("marshaling comment: %w", err)
-	}
-	if err := ocs.PostStore.Exists(c.Post); err != nil {
-		return fmt.Errorf("checking post existence: %w", err)
 	}
 
 	// If a `parent` was provided, then make sure it exists

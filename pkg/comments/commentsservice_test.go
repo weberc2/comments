@@ -71,7 +71,6 @@ func TestPutComment(t *testing.T) {
 				Comments: CommentsModel{
 					CommentsStore: &ObjectCommentsStore{
 						ObjectStore: testsupport.ObjectStoreFake{},
-						PostStore:   &postStoreFake{"post"},
 						Bucket:      "bucket",
 						Prefix:      "prefix",
 					},
