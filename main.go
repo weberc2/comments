@@ -15,33 +15,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/uuid"
 	"github.com/weberc2/auth/pkg/client"
-	"github.com/weberc2/comments/pkg/auth"
 	"github.com/weberc2/comments/pkg/comments"
 	"github.com/weberc2/comments/pkg/objectstore"
 	"github.com/weberc2/comments/pkg/types"
 	pz "github.com/weberc2/httpeasy"
 )
-
-type Authenticator interface {
-	AuthN(auth.AuthType, pz.Handler) pz.Handler
-	AuthZ(auth.AuthType, pz.Handler) pz.Handler
-}
-
-type AuthDisabled string
-
-func (ad AuthDisabled) AuthN(_ auth.AuthType, h pz.Handler) pz.Handler {
-	return func(r pz.Request) pz.Response {
-		r.Headers.Add("User", string(ad))
-		return h(r)
-	}
-}
-
-func (ad AuthDisabled) AuthZ(_ auth.AuthType, h pz.Handler) pz.Handler {
-	return func(r pz.Request) pz.Response {
-		r.Headers.Add("User", string(ad))
-		return h(r)
-	}
-}
 
 func main() {
 	addr := os.Getenv("ADDR")
@@ -74,6 +52,20 @@ func main() {
 		log.Fatal("missing required env var: BUCKET")
 	}
 
+	cookieEncryptionKey := os.Getenv("COOKIE_ENCRYPTION_KEY")
+	if cookieEncryptionKey == "" {
+		log.Fatal("missing required env var: COOKIE_ENCRYPTION_KEY")
+	}
+
+	accessTokenPublicKey := os.Getenv("ACCESS_KEY")
+	if accessTokenPublicKey == "" {
+		log.Fatal("missing required env var: ACCESS_KEY")
+	}
+	key, err := decodeKey(accessTokenPublicKey)
+	if err != nil {
+		log.Fatalf("decoding ACCESS_KEY: %v", err)
+	}
+
 	sess, err := session.NewSession()
 	if err != nil {
 		log.Fatalf("creating AWS session: %v", err)
@@ -94,33 +86,28 @@ func main() {
 	}
 
 	webServer := comments.WebServer{
-		LoginURL:  loginURL,
-		LogoutURL: logoutURL,
-		BaseURL:   baseURL,
-		Comments:  commentsService.Comments,
+		LoginURL:         loginURL,
+		LogoutURL:        logoutURL,
+		BaseURL:          baseURL,
+		Comments:         commentsService.Comments,
+		AuthCallbackPath: "/auth/callback",
 	}
 
-	webServerAuth := auth.AuthTypeWebServer{
-		Auth: client.DefaultClient(authBaseURL),
+	webServerAuth := client.AuthTypeWebServer{
+		WebServerApp: client.WebServerApp{
+			Client:          client.DefaultClient(authBaseURL),
+			BaseURL:         baseURL,
+			DefaultRedirect: baseURL,
+			Key:             cookieEncryptionKey,
+		},
 	}
-	apiAuth := auth.AuthTypeClientProgram{}
-	var a Authenticator
-	if user := os.Getenv("AUTH_DISABLED_USER"); user != "" {
-		a = AuthDisabled(user)
-	} else {
-		accessTokenPublicKey := os.Getenv("ACCESS_KEY")
-		if accessTokenPublicKey == "" {
-			log.Fatal("missing required env var: ACCESS_KEY")
-		}
-		key, err := decodeKey(accessTokenPublicKey)
-		if err != nil {
-			log.Fatalf("decoding ACCESS_KEY: %v", err)
-		}
-		a = &auth.Authenticator{Key: key}
-	}
+	apiAuth := client.AuthTypeClientProgram{}
+
+	a := client.Authenticator{Key: key}
 
 	http.ListenAndServe(addr, pz.Register(
 		pz.JSONLog(os.Stderr),
+		webServerAuth.AuthCodeCallbackRoute(webServer.AuthCallbackPath),
 		pz.Route{
 			Method:  "GET",
 			Path:    "/api/posts/{post-id}/comments/{comment-id}/replies",

@@ -1,14 +1,18 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+
+	pz "github.com/weberc2/httpeasy"
+)
 
 type CommentNotFoundErr struct {
 	Post    PostID
 	Comment CommentID
 }
 
-func (err *CommentNotFoundErr) HTTPError() *HTTPError {
-	return &HTTPError{Status: 404, Message: "comment not found"}
+func (err *CommentNotFoundErr) HTTPError() *pz.HTTPError {
+	return &pz.HTTPError{Status: 404, Message: "comment not found"}
 }
 
 func (err *CommentNotFoundErr) Error() string {
@@ -28,4 +32,4 @@ type CommentsStore interface {
 
 // fail compilation if `CommentNotFoundErr` doesn't satisfy the `Error`
 // interface.
-var _ Error = &CommentNotFoundErr{}
+var _ pz.Error = &CommentNotFoundErr{}

@@ -1,7 +1,7 @@
 version: "3.9"
 services:
   auth:
-    image: weberc2/auth:30c8cd75
+    build: "../auth"
     command: [ "/bin/auth" ]
     ports: [ 8081:8081 ]
     environment:
@@ -16,6 +16,7 @@ services:
       AWS_REGION: us-east-2
 
       # Secrets
+      AUTH_CODE_SIGNING_KEY: "${AUTH_CODE_SIGNING_KEY}"
       AUTH_ACCESS_SIGNING_KEY: "${AUTH_ACCESS_SIGNING_KEY}"
       AUTH_REFRESH_SIGNING_KEY: "${AUTH_REFRESH_SIGNING_KEY}"
       AUTH_RESET_SIGNING_KEY: "${AUTH_RESET_SIGNING_KEY}"
@@ -30,11 +31,11 @@ services:
       LOGIN_URL: http://localhost:8081/login
       LOGOUT_URL: http://localhost:8081/logout
       BASE_URL: http://localhost:8080
-      AUTH_BASE_URL: http://localhost:8081
+      AUTH_BASE_URL: http://auth:8081
       BUCKET: weberc2-comments
       ACCESS_KEY: "${COMMENTS_ACCESS_PUBLIC_KEY}"
       AWS_REGION: us-east-2
-      AUTH_DISABLED_USER: "${AUTH_DISABLED_USER}"
+      COOKIE_ENCRYPTION_KEY: test-key
 
       # Secrets
       AWS_ACCESS_KEY_ID: "${COMMENTS_AWS_ACCESS_KEY_ID}"

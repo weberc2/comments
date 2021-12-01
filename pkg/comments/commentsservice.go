@@ -1,7 +1,6 @@
 package comments
 
 import (
-	"errors"
 	"time"
 
 	"github.com/weberc2/comments/pkg/types"
@@ -35,7 +34,7 @@ func (cs *CommentsService) PutComment(r pz.Request) pz.Response {
 	c.Modified = c.Created
 	comment, err := cs.Comments.Put(&c)
 	if err != nil {
-		return handle("putting comment", err)
+		return pz.HandleError("putting comment", err)
 	}
 	return pz.Created(pz.JSON(comment), struct {
 		Message string
@@ -56,7 +55,7 @@ func (cs *CommentsService) Replies(r pz.Request) pz.Response {
 		parent,
 	)
 	if err != nil {
-		return handle("retrieving comment replies", err)
+		return pz.HandleError("retrieving comment replies", err)
 	}
 	return pz.Ok(pz.JSON(comments))
 }
@@ -67,37 +66,7 @@ func (cs *CommentsService) GetComment(r pz.Request) pz.Response {
 		types.CommentID(r.Vars["comment-id"]),
 	)
 	if err != nil {
-		return handle("retrieving comment", err)
+		return pz.HandleError("retrieving comment", err)
 	}
 	return pz.Ok(pz.JSON(comment))
-}
-
-func handle(message string, err error, logging ...interface{}) pz.Response {
-	logging = append(logging, struct {
-		Message string `json:"message"`
-		Error   string `json:"error"`
-	}{
-		Message: message,
-		Error:   err.Error(),
-	})
-
-	cause := err
-	for {
-		if unwrapped := errors.Unwrap(cause); unwrapped != nil {
-			cause = unwrapped
-			continue
-		}
-		break
-	}
-
-	if e, ok := cause.(types.Error); ok {
-		httpErr := e.HTTPError()
-		return pz.Response{
-			Status:  httpErr.Status,
-			Data:    pz.JSON(httpErr),
-			Logging: logging,
-		}
-	}
-
-	return pz.InternalServerError(logging)
 }

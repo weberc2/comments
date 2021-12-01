@@ -3,8 +3,10 @@ package comments
 import (
 	"time"
 
-	"github.com/weberc2/comments/pkg/types"
 	"html"
+
+	"github.com/weberc2/comments/pkg/types"
+	pz "github.com/weberc2/httpeasy"
 )
 
 const (
@@ -13,9 +15,9 @@ const (
 )
 
 var (
-	ErrInvalidPost  = &types.HTTPError{Status: 400, Message: "invalid post"}
-	ErrBodyTooShort = &types.HTTPError{Status: 400, Message: "body too short"}
-	ErrBodyTooLong  = &types.HTTPError{Status: 400, Message: "body too long"}
+	ErrInvalidPost  = &pz.HTTPError{Status: 400, Message: "invalid post"}
+	ErrBodyTooShort = &pz.HTTPError{Status: 400, Message: "body too short"}
+	ErrBodyTooLong  = &pz.HTTPError{Status: 400, Message: "body too long"}
 )
 
 type CommentsModel struct {

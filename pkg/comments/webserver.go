@@ -6,6 +6,7 @@ import (
 	html "html/template"
 	"io/ioutil"
 	"net/url"
+	"strings"
 
 	"github.com/weberc2/comments/pkg/types"
 	pz "github.com/weberc2/httpeasy"
@@ -19,15 +20,17 @@ type logging struct {
 }
 
 type WebServer struct {
-	LoginURL  string
-	LogoutURL string
-	BaseURL   string
-	Comments  CommentsModel
+	LoginURL         string
+	LogoutURL        string
+	BaseURL          string
+	Comments         CommentsModel
+	AuthCallbackPath string
 }
 
 var repliesTemplate = html.Must(html.New("").Parse(`<html>
 <head></head>
 <body>
+<a href="{{.BaseURL}}/posts/{{.Post}}/comments/toplevel/reply">Reply To Post</a>
 <h1>Replies</h1>
 <div id=replies>
 {{if .User}}
@@ -104,7 +107,22 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 			Replies   []*types.Comment `json:"replies"`
 			User      types.UserID     `json:"user"`
 		}{
-			LoginURL:  ws.LoginURL,
+			LoginURL: fmt.Sprintf(
+				"%s?%s",
+				ws.LoginURL,
+				url.Values{
+					"callback": []string{fmt.Sprintf(
+						"%s/%s",
+						strings.TrimRight(ws.BaseURL, "/"),
+						strings.TrimLeft(ws.AuthCallbackPath, "/"),
+					)},
+					"redirect": []string{fmt.Sprintf(
+						"/posts/%s/comments/%s/replies",
+						post,
+						parent,
+					)},
+				}.Encode(),
+			),
 			LogoutURL: ws.LogoutURL,
 			BaseURL:   ws.BaseURL,
 			Post:      post,
@@ -185,7 +203,7 @@ func (ws *WebServer) Delete(r pz.Request) pz.Response {
 
 	comment, err := ws.Comments.Comment(context.Post, context.Comment)
 	if err != nil {
-		return handle("fetching comment", err, &context)
+		return pz.HandleError("fetching comment", err, &context)
 	}
 
 	if comment.Author != context.User {
@@ -195,7 +213,7 @@ func (ws *WebServer) Delete(r pz.Request) pz.Response {
 	}
 
 	if err := ws.Comments.Delete(context.Post, context.Comment); err != nil {
-		return handle("deleting comment", err, &context)
+		return pz.HandleError("deleting comment", err, &context)
 	}
 
 	if _, err := url.Parse(context.Redirect); err != nil {
@@ -245,7 +263,7 @@ func (ws *WebServer) ReplyForm(r pz.Request) pz.Response {
 		if err != nil {
 			context.Message = "fetching comment"
 			context.Error = err.Error()
-			return handle("fetching comment", err, &context)
+			return pz.HandleError("fetching comment", err, &context)
 		}
 		context.Comment = *comment
 	}
@@ -292,7 +310,7 @@ func (ws *WebServer) Reply(r pz.Request) pz.Response {
 		Body:   values.Get("body"),
 	})
 	if err != nil {
-		return handle("creating comment", err, &context)
+		return pz.HandleError("creating comment", err, &context)
 	}
 
 	context.Redirect = fmt.Sprintf(

@@ -21,64 +21,64 @@ type Comment struct {
 	Body     string    `json:"body"`
 }
 
-func (c *Comment) Compare(other *Comment) error {
-	if c == nil && other == nil {
+func (wanted *Comment) Compare(found *Comment) error {
+	if wanted == nil && found == nil {
 		return nil
 	}
 
-	if c != nil && other == nil {
+	if wanted != nil && found == nil {
 		return fmt.Errorf("Comment: unexpected `nil`")
 	}
 
-	if c == nil && other != nil {
+	if wanted == nil && found != nil {
 		return fmt.Errorf("Comment: wanted `nil`; found not-nil")
 	}
 
-	if c.ID != other.ID {
+	if wanted.ID != found.ID {
 		return fmt.Errorf(
 			"Comment.ID: wanted `%s`; found `%s`",
-			c.ID,
-			other.ID,
+			wanted.ID,
+			found.ID,
 		)
 	}
 
-	if c.Author != other.Author {
+	if wanted.Author != found.Author {
 		return fmt.Errorf(
 			"Comment.Author: wanted `%s`; found `%s`",
-			c.Author,
-			other.Author,
+			wanted.Author,
+			found.Author,
 		)
 	}
 
-	if c.Parent != other.Parent {
+	if wanted.Parent != found.Parent {
 		return fmt.Errorf(
 			"Comment.Parent: wanted `%s`; found `%s`",
-			c.Parent,
-			other.Parent,
+			wanted.Parent,
+			found.Parent,
 		)
 	}
 
-	if c.Body != other.Body {
+	if wanted.Body != found.Body {
 		return fmt.Errorf(
 			"Comment.Body: wanted `%s`; found `%s`",
-			c.Body,
-			other.Body,
+			wanted.Body,
+			found.Body,
 		)
 	}
 
-	if c.Created != other.Created {
+	if wanted.Created != found.Created {
 		return fmt.Errorf(
 			"Comment.Created: wanted `%s`; found `%s`",
-			c.Created,
-			other.Created,
+			wanted.Created,
+			found.Created,
 		)
 	}
 
-	if c.Modified != other.Modified {
+	if wanted.Modified != found.Modified {
 		return fmt.Errorf(
 			"Comment.Modified: wanted `%s`; found `%s`",
-			c.Modified,
-			other.Modified,
+			wanted.Modified,
+			found.Modified,
 		)
 	}
 
