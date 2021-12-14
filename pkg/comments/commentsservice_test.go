@@ -14,7 +14,7 @@ import (
 	pz "github.com/weberc2/httpeasy"
 )
 
-func TestPutComment(t *testing.T) {
+func TestCommentsService_PutComment(t *testing.T) {
 	now := time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)
 	for _, testCase := range []struct {
 		name         string

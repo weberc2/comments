@@ -12,7 +12,7 @@ import (
 	pz "github.com/weberc2/httpeasy"
 )
 
-func TestReply(t *testing.T) {
+func TestWebServer_Reply(t *testing.T) {
 	now := time.Date(1988, 9, 3, 0, 0, 0, 0, time.UTC)
 
 	for _, testCase := range []struct {
@@ -140,7 +140,7 @@ func TestReply(t *testing.T) {
 	}
 }
 
-func TestDelete(t *testing.T) {
+func TestWebServer_Delete(t *testing.T) {
 	now := time.Date(1988, 9, 3, 0, 0, 0, 0, time.UTC)
 	for _, testCase := range []struct {
 		name           string
