@@ -3,7 +3,7 @@
 on: push
 jobs:
   # label of the container job
-  postgres-job:
+  tests:
     # containers must run in Linux based operating systems
     runs-on: ubuntu-latest
     # Docker Hub image that `postgres-job` executes in
@@ -44,7 +44,7 @@ jobs:
           go-version: 1.17.3
       - name: Test
         id: test
-        run: go test ./...
+        run: go test -v ./...
         env:
           PG_PASS: password
           PG_USER: postgres
