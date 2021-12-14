@@ -1,4 +1,7 @@
 on: push
+permissions:
+  # golangci-lint-action wants this
+  contents: read
 jobs:
   tests:
     # Based on
