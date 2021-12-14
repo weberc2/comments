@@ -98,7 +98,7 @@ func main() {
 
 	a := client.Authenticator{Key: key}
 
-	http.ListenAndServe(addr, pz.Register(
+	if err := http.ListenAndServe(addr, pz.Register(
 		pz.JSONLog(os.Stderr),
 		webServerAuth.AuthCodeCallbackRoute(webServer.AuthCallbackPath),
 		pz.Route{
@@ -141,7 +141,9 @@ func main() {
 			Path:    "/posts/{post-id}/comments/{comment-id}/reply",
 			Handler: a.AuthN(&webServerAuth, webServer.Reply),
 		},
-	))
+	)); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func decodeKey(encoded string) (*ecdsa.PublicKey, error) {
