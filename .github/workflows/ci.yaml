@@ -43,12 +43,13 @@ jobs:
         with:
           go-version: 1.17.3
 
+      - name: Lint
+        uses: golangci/golangci-lint-action@v2
+        id: lint
+        run: golangci-lint run
       - name: Vet
         id: vet
         run: go vet -v ./...
-      - name: Lint
-        id: lint
-        run: golangci-lint run
       - name: Test
         id: test
         run: go test -v ./...
