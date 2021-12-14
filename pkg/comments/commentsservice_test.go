@@ -12,7 +12,86 @@ import (
 	"github.com/weberc2/comments/pkg/testsupport"
 	"github.com/weberc2/comments/pkg/types"
 	pz "github.com/weberc2/httpeasy"
+	pztest "github.com/weberc2/httpeasy/testsupport"
 )
+
+func TestCommentsService_DeleteComment(t *testing.T) {
+	for _, testCase := range []struct {
+		name         string
+		state        testsupport.CommentsStoreFake
+		post         types.PostID
+		comment      types.CommentID
+		wantedStatus int
+		wantedBody   WantedData
+	}{
+		{
+			name: "delete works",
+			state: testsupport.CommentsStoreFake{
+				"post": {
+					"id": {
+						ID:       "id",
+						Post:     "post",
+						Parent:   "",
+						Author:   "author",
+						Created:  someTime,
+						Modified: someTime,
+						Deleted:  false,
+						Body:     "greetings",
+					},
+				},
+			},
+			post:         "post",
+			comment:      "id",
+			wantedStatus: http.StatusOK,
+			wantedBody: &DeleteCommentResponse{
+				Message: "deleted comment",
+				Post:    "post",
+				Comment: "id",
+				Status:  http.StatusOK,
+			},
+		},
+		{
+			name:         "errors propagate",
+			state:        testsupport.CommentsStoreFake{},
+			post:         "post",
+			comment:      "id",
+			wantedStatus: http.StatusNotFound,
+			wantedBody: (&types.CommentNotFoundErr{
+				Post:    "post",
+				Comment: "id",
+			}).HTTPError(),
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			service := CommentsService{
+				Comments: CommentsModel{
+					CommentsStore: &testCase.state,
+					TimeFunc:      func() time.Time { return now },
+				},
+				TimeFunc: func() time.Time { return now },
+			}
+			rsp := service.DeleteComment(pz.Request{
+				Vars: map[string]string{
+					"post-id":    string(testCase.post),
+					"comment-id": string(testCase.comment),
+				},
+			})
+			if rsp.Status != testCase.wantedStatus {
+				t.Fatalf(
+					"status: wanted `%d`; found `%d`",
+					testCase.wantedStatus,
+					rsp.Status,
+				)
+			}
+			if err := pztest.CompareSerializer(
+				testCase.wantedBody,
+				rsp.Data,
+			); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
 
 func TestCommentsService_PutComment(t *testing.T) {
 	now := time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)
