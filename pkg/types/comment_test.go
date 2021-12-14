@@ -157,11 +157,9 @@ func TestComment_Compare(t *testing.T) {
 				testCase.wantedErr = NilError{}
 			}
 
-			foundErr := testCase.wanted.Compare(testCase.found)
-			t.Logf("Actual error: %v", foundErr)
-			t.Logf("Wanted error: %v", testCase.wantedErr)
-
-			if err := testCase.wantedErr.CompareErr(foundErr); err != nil {
+			if err := testCase.wantedErr.CompareErr(
+				testCase.wanted.Compare(testCase.found),
+			); err != nil {
 				t.Fatal(err)
 			}
 		})
