@@ -1,0 +1,56 @@
+# Based on
+# https://remarkablemark.org/blog/2021/03/14/setup-postgresql-in-github-actions/
+on: push
+jobs:
+  # label of the container job
+  postgres-job:
+    # containers must run in Linux based operating systems
+    runs-on: ubuntu-latest
+    # Docker Hub image that `postgres-job` executes in
+    container: golang:1.17.5
+
+    # service containers to run with `postgres-job`
+    services:
+      # label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres:14.1
+        # service environment variables
+        # `POSTGRES_HOST` is `postgres`
+        env:
+          # optional (defaults to `postgres`)
+          POSTGRES_DB: postgres
+          # required
+          POSTGRES_PASSWORD: password
+          # optional (defaults to `5432`)
+          POSTGRES_PORT: 5432
+          # optional (defaults to `postgres`)
+          POSTGRES_USER: postgres
+        ports:
+          # maps tcp port 5432 on service container to the host
+          - 5432:5432
+        # set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.3
+      - name: Test
+        id: test
+        run: go test ./...
+        env:
+          PG_PASS: password
+          PG_USER: postgres
+          PG_DB_NAME: postgres
+          PG_PORT: 5432
+          PG_HOST: postgres
+      - name: Build
+        id: build
+        run: go build ./...
