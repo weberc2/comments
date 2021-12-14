@@ -25,9 +25,6 @@ func (cs *CommentsService) PutComment(r pz.Request) pz.Response {
 		)
 	}
 
-	type msg struct {
-		Message string
-	}
 	c.Post = types.PostID(r.Vars["post-id"])
 	c.Author = types.UserID(r.Headers.Get("User"))
 	c.Created = cs.TimeFunc().UTC()

@@ -16,6 +16,8 @@ import (
 
 const errUniqueViolation = "23505"
 
+var _ types.CommentsStore = &PGCommentsStore{}
+
 type PGCommentsStore struct {
 	DB *sql.DB
 }

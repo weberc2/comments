@@ -197,6 +197,9 @@ func main() {
 						input.ID = types.CommentID(uuid.NewString())
 					}
 					comment, err := store.Put(input)
+					if err != nil {
+						return err
+					}
 					data, err := json.MarshalIndent(comment, "", "  ")
 					if err != nil {
 						return err
