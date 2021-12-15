@@ -50,7 +50,7 @@ func main() {
 							store *pgcommentsstore.PGCommentsStore,
 							ctx *cli.Context,
 						) error {
-							return store.DropTable()
+							return store.ResetTable()
 						}),
 					},
 					{

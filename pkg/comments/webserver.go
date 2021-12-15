@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	html "html/template"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -304,7 +305,8 @@ func (ws *WebServer) Reply(r pz.Request) pz.Response {
 		context.Comment = ""
 	}
 
-	data, err := ioutil.ReadAll(r.Body)
+	// limitreader = mitigate dos attack
+	data, err := ioutil.ReadAll(io.LimitReader(r.Body, 2056))
 	if err != nil {
 		context.Message = "reading request body"
 		context.Error = err.Error()
