@@ -27,16 +27,24 @@ type CommentsModel struct {
 	TimeFunc func() time.Time
 }
 
+func validateCommentBody(body string) error {
+	if len(body) < bodySizeMin {
+		return ErrBodyTooShort
+	}
+	if len(body) > bodySizeMax {
+		return ErrBodyTooLong
+	}
+	return nil
+}
+
 func (cm *CommentsModel) Put(c *types.Comment) (*types.Comment, error) {
 	if c.Post == "" {
 		return nil, ErrInvalidPost
 	}
-	if len(c.Body) < bodySizeMin {
-		return nil, ErrBodyTooShort
+	if err := validateCommentBody(c.Body); err != nil {
+		return nil, err
 	}
-	if len(c.Body) > bodySizeMax {
-		return nil, ErrBodyTooLong
-	}
+
 	if c.Parent != "" {
 		parent, err := cm.CommentsStore.Comment(
 			c.Post,
@@ -78,7 +86,7 @@ func (cm *CommentsModel) Replies(
 ) ([]*types.Comment, error) {
 	comments, err := cm.CommentsStore.Replies(post, parent)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetching comment replies: %w", err)
 	}
 
 	for _, comment := range comments {
@@ -90,4 +98,32 @@ func (cm *CommentsModel) Replies(
 	}
 
 	return comments, nil
+}
+
+type CommentUpdate struct {
+	ID   types.CommentID `json:"comment"`
+	Post types.PostID    `json:"post"`
+	Body string          `json:"body"`
+}
+
+func (cm *CommentsModel) Update(update *CommentUpdate) error {
+	if err := validateCommentBody(update.Body); err != nil {
+		return fmt.Errorf("updating comment: %w", err)
+	}
+
+	c, err := cm.CommentsStore.Comment(update.Post, update.ID)
+	if err != nil {
+		return fmt.Errorf("updating comment: %w", err)
+	}
+	if c.Deleted {
+		return fmt.Errorf(
+			"updating comment: %w",
+			&types.CommentNotFoundErr{Post: update.Post, Comment: update.ID},
+		)
+	}
+	return cm.CommentsStore.Update(
+		types.NewCommentPatch(update.ID, update.Post).
+			SetBody(update.Body).
+			SetModified(cm.TimeFunc()),
+	)
 }

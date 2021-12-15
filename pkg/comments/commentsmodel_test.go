@@ -13,6 +13,142 @@ const (
 	goodBody = "sufficiently long body"
 )
 
+func TestCommentsModel_Update(t *testing.T) {
+	for _, testCase := range []struct {
+		name        string
+		state       testsupport.CommentsStoreFake
+		input       *CommentUpdate
+		wantedState []*types.Comment
+		wantedErr   types.WantedError
+	}{
+		{
+			name: "simple",
+			state: testsupport.CommentsStoreFake{
+				"post": {
+					"id": {
+						ID:       "id",
+						Post:     "post",
+						Parent:   "",
+						Author:   "author",
+						Created:  someTime,
+						Modified: someTime,
+						Deleted:  false,
+						Body:     "hello, world",
+					},
+				},
+			},
+			input: &CommentUpdate{ID: "id", Post: "post", Body: "greetings"},
+			wantedState: []*types.Comment{{
+				ID:       "id",
+				Post:     "post",
+				Parent:   "",
+				Author:   "author",
+				Created:  someTime,
+				Modified: now,
+				Deleted:  false,
+				Body:     "greetings",
+			}},
+		},
+		{
+			name: "can't edit deleted",
+			state: testsupport.CommentsStoreFake{
+				"post": {
+					"id": {
+						ID:       "id",
+						Post:     "post",
+						Parent:   "",
+						Author:   "author",
+						Created:  someTime,
+						Modified: someTime,
+						Deleted:  true,
+						Body:     "hello, world",
+					},
+				},
+			},
+			input: &CommentUpdate{ID: "id", Post: "post", Body: "greetings"},
+			wantedState: []*types.Comment{{
+				ID:       "id",
+				Post:     "post",
+				Parent:   "",
+				Author:   "author",
+				Created:  someTime,
+				Modified: someTime,
+				Deleted:  true,
+				Body:     "hello, world",
+			}},
+			wantedErr: &types.CommentNotFoundErr{
+				Post:    "post",
+				Comment: "id",
+			},
+		},
+		{
+			name: "validates body",
+			state: testsupport.CommentsStoreFake{
+				"post": {
+					"id": {
+						ID:       "id",
+						Post:     "post",
+						Parent:   "",
+						Author:   "author",
+						Created:  someTime,
+						Modified: someTime,
+						Deleted:  false,
+						Body:     "hello, world",
+					},
+				},
+			},
+			input: &CommentUpdate{ID: "id", Post: "post", Body: ""},
+			wantedState: []*types.Comment{{
+				ID:       "id",
+				Post:     "post",
+				Parent:   "",
+				Author:   "author",
+				Created:  someTime,
+				Modified: someTime,
+				Deleted:  false,
+				Body:     "hello, world",
+			}},
+			wantedErr: ErrBodyTooShort,
+		},
+		{
+			name: "errors propagate",
+			input: &CommentUpdate{
+				ID:   "not-found",
+				Post: "not-found",
+				Body: "salutations",
+			},
+			wantedErr: &types.CommentNotFoundErr{
+				Post:    "not-found",
+				Comment: "not-found",
+			},
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			model := CommentsModel{
+				CommentsStore: testCase.state,
+				TimeFunc:      func() time.Time { return now },
+			}
+
+			if testCase.wantedErr == nil {
+				testCase.wantedErr = types.NilError{}
+			}
+
+			if err := testCase.wantedErr.CompareErr(
+				model.Update(testCase.input),
+			); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := types.CompareComments(
+				testCase.wantedState,
+				testCase.state.List(),
+			); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestCommentsModel_Replies(t *testing.T) {
 	for _, testCase := range []struct {
 		name           string

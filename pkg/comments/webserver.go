@@ -5,6 +5,7 @@ import (
 	"fmt"
 	html "html/template"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -335,4 +336,99 @@ func (ws *WebServer) Reply(r pz.Request) pz.Response {
 	)
 	context.Message = "successfully created comment"
 	return pz.SeeOther(context.Redirect, &context)
+}
+
+var editTemplate = html.Must(html.New("").Parse(`<html>
+<head></head>
+<body>
+	<p>{{.Comment.Body}}</p>
+	<form action="{{.BaseURL}}/posts/{{.Comment.Post}}/comments/{{.Comment.ID}}/edit" method="POST">
+		<textarea name="body">{{.Comment.Body}}</textarea>
+		<input type="submit" value="Submit">
+	</form>
+</body>
+</html>`))
+
+func (ws *WebServer) EditForm(r pz.Request) pz.Response {
+	context := struct {
+		Message string        `json:"message"`
+		BaseURL string        `json:"baseURL"`
+		Comment types.Comment `json:"comment"`
+		Error   string        `json:"error,omitempty"`
+	}{
+		BaseURL: ws.BaseURL,
+		Comment: types.Comment{
+			Post: types.PostID(r.Vars["post-id"]),
+			ID:   types.CommentID(r.Vars["comment-id"]),
+		},
+	}
+
+	comment, err := ws.Comments.Comment(
+		context.Comment.Post,
+		context.Comment.ID,
+	)
+	if err != nil {
+		context.Message = "fetching comment"
+		context.Error = err.Error()
+		return pz.HandleError("fetching comment", err, &context)
+	}
+	context.Comment = *comment
+
+	return pz.Ok(pz.HTMLTemplate(editTemplate, &context), &context)
+}
+
+func (ws *WebServer) Edit(r pz.Request) pz.Response {
+	var context = struct {
+		Message       string `json:"message"`
+		CommentUpdate `json:",inline"`
+		Error         string `json:"error,omitempty"`
+	}{
+		CommentUpdate: CommentUpdate{
+			Post: types.PostID(r.Vars["post-id"]),
+			ID:   types.CommentID(r.Vars["comment-id"]),
+		},
+	}
+
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		context.Message = "reading request body"
+		context.Error = err.Error()
+		return pz.InternalServerError(&context)
+	}
+
+	values, err := url.ParseQuery(string(data))
+	if err != nil {
+		context.Message = "parsing form values"
+		context.Error = err.Error()
+		return pz.BadRequest(nil, &context)
+	}
+
+	if !values.Has("body") {
+		context.Message = "parsing form values"
+		context.Error = "missing required field `body`"
+		return pz.BadRequest(
+			pz.JSON(&pz.HTTPError{
+				Status:  http.StatusBadRequest,
+				Message: "parsing form values: missing required field `body`",
+			}),
+			&context,
+		)
+	}
+
+	context.Body = values.Get("body")
+	if err := ws.Comments.Update(&context.CommentUpdate); err != nil {
+		context.Error = err.Error()
+		return pz.HandleError("updating comment", err, &context)
+	}
+
+	context.Message = "successfully updated comment"
+	return pz.SeeOther(
+		fmt.Sprintf(
+			"%s/posts/%s/comments/toplevel/replies#%s",
+			ws.BaseURL,
+			context.Post,
+			context.ID,
+		),
+		&context,
+	)
 }

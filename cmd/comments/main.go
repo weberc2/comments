@@ -109,12 +109,17 @@ func main() {
 		pz.Route{
 			Method:  "POST",
 			Path:    "/api/posts/{post-id}/comments",
-			Handler: a.AuthN(apiAuth, commentsService.PutComment),
+			Handler: a.AuthN(apiAuth, commentsService.Put),
 		},
 		pz.Route{
 			Method:  "GET",
 			Path:    "/api/posts/{post-id}/comments/{comment-id}",
-			Handler: commentsService.GetComment,
+			Handler: commentsService.Get,
+		},
+		pz.Route{
+			Method:  "PATCH",
+			Path:    "/api/posts/{post-id}/comments/{comment-id}",
+			Handler: a.AuthN(apiAuth, commentsService.Update),
 		},
 		pz.Route{
 			Method:  "GET",
@@ -140,6 +145,16 @@ func main() {
 			Method:  "POST",
 			Path:    "/posts/{post-id}/comments/{comment-id}/reply",
 			Handler: a.AuthN(&webServerAuth, webServer.Reply),
+		},
+		pz.Route{
+			Method:  "GET",
+			Path:    "/posts/{post-id}/comments/{comment-id}/edit",
+			Handler: a.AuthN(&webServerAuth, webServer.EditForm),
+		},
+		pz.Route{
+			Method:  "POST",
+			Path:    "/posts/{post-id}/comments/{comment-id}/edit",
+			Handler: a.AuthN(&webServerAuth, webServer.Edit),
 		},
 	)); err != nil {
 		log.Fatal(err)

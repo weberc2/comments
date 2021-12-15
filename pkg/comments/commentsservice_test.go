@@ -15,7 +15,7 @@ import (
 	pztest "github.com/weberc2/httpeasy/testsupport"
 )
 
-func TestCommentsService_DeleteComment(t *testing.T) {
+func TestCommentsService_Delete(t *testing.T) {
 	for _, testCase := range []struct {
 		name         string
 		state        testsupport.CommentsStoreFake
@@ -23,6 +23,7 @@ func TestCommentsService_DeleteComment(t *testing.T) {
 		comment      types.CommentID
 		wantedStatus int
 		wantedBody   WantedData
+		wantedState  []*types.Comment
 	}{
 		{
 			name: "delete works",
@@ -49,6 +50,16 @@ func TestCommentsService_DeleteComment(t *testing.T) {
 				Comment: "id",
 				Status:  http.StatusOK,
 			},
+			wantedState: []*types.Comment{{
+				ID:       "id",
+				Post:     "post",
+				Parent:   "",
+				Author:   "author",
+				Created:  someTime,
+				Modified: now,
+				Deleted:  true,
+				Body:     "greetings",
+			}},
 		},
 		{
 			name:         "errors propagate",
@@ -60,6 +71,7 @@ func TestCommentsService_DeleteComment(t *testing.T) {
 				Post:    "post",
 				Comment: "id",
 			}).HTTPError(),
+			wantedState: nil,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -70,7 +82,7 @@ func TestCommentsService_DeleteComment(t *testing.T) {
 				},
 				TimeFunc: func() time.Time { return now },
 			}
-			rsp := service.DeleteComment(pz.Request{
+			rsp := service.Delete(pz.Request{
 				Vars: map[string]string{
 					"post-id":    string(testCase.post),
 					"comment-id": string(testCase.comment),
@@ -89,11 +101,133 @@ func TestCommentsService_DeleteComment(t *testing.T) {
 			); err != nil {
 				t.Fatal(err)
 			}
+			if err := pztest.CompareSerializer(
+				testCase.wantedBody,
+				rsp.Data,
+			); err != nil {
+				t.Fatal(err)
+			}
+			if err := types.CompareComments(
+				testCase.wantedState,
+				testCase.state.List(),
+			); err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 }
 
-func TestCommentsService_PutComment(t *testing.T) {
+func TestCommentsService_Update(t *testing.T) {
+	for _, testCase := range []struct {
+		name         string
+		state        testsupport.CommentsStoreFake
+		post         types.PostID
+		comment      types.CommentID
+		body         string
+		wantedStatus int
+		wantedBody   pztest.WantedData
+		wantedState  []*types.Comment
+	}{
+		{
+			name: "simple",
+			state: testsupport.CommentsStoreFake{
+				"post": {
+					"id": {
+						ID:       "id",
+						Post:     "post",
+						Parent:   "",
+						Author:   "author",
+						Created:  someTime,
+						Modified: someTime,
+						Deleted:  false,
+						Body:     "hello, world",
+					},
+				},
+			},
+			post:         "post",
+			comment:      "id",
+			body:         `{"body": "salutations"}`,
+			wantedStatus: http.StatusOK,
+			wantedBody:   UpdateResponseSuccess,
+			wantedState: []*types.Comment{{
+				ID:       "id",
+				Post:     "post",
+				Parent:   "",
+				Author:   "author",
+				Created:  someTime,
+				Modified: now,
+				Deleted:  false,
+				Body:     "salutations",
+			}},
+		},
+		{
+			// test that unmarshal errors are handled correctly.
+			name:         "unmarshal error",
+			post:         "post",
+			comment:      "id",
+			body:         "",
+			wantedStatus: http.StatusBadRequest,
+			wantedBody: &pz.HTTPError{
+				Message: "error unmarshaling json",
+				Status:  http.StatusBadRequest,
+			},
+		},
+		{
+			// test that the errors are handled by trying to update a comment
+			// that doesn't exist--the commentsstore should return a
+			// `types.CommentNotFoundErr` which should be marshaled by our
+			// handler.
+			name:         "errors handled",
+			post:         "post",
+			comment:      "not-found",
+			body:         `{"body": "this is a valid body"}`,
+			wantedStatus: http.StatusNotFound,
+			wantedBody: (&types.CommentNotFoundErr{
+				Post:    "post",
+				Comment: "not-found",
+			}).HTTPError(),
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			service := CommentsService{
+				Comments: CommentsModel{
+					CommentsStore: testCase.state,
+					IDFunc:        func() types.CommentID { return "comment" },
+					TimeFunc:      func() time.Time { return now },
+				},
+				TimeFunc: func() time.Time { return now },
+			}
+			rsp := service.Update(pz.Request{
+				Vars: map[string]string{
+					"post-id":    string(testCase.post),
+					"comment-id": string(testCase.comment),
+				},
+				Body: strings.NewReader(testCase.body),
+			})
+			if rsp.Status != testCase.wantedStatus {
+				t.Fatalf(
+					"HTTP Status: wanted `%d`; found `%d`",
+					testCase.wantedStatus,
+					rsp.Status,
+				)
+			}
+			if err := pztest.CompareSerializer(
+				testCase.wantedBody,
+				rsp.Data,
+			); err != nil {
+				t.Fatal(err)
+			}
+			if err := types.CompareComments(
+				testCase.wantedState,
+				testCase.state.List(),
+			); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestCommentsService_Put(t *testing.T) {
 	now := time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)
 	for _, testCase := range []struct {
 		name         string
@@ -160,7 +294,7 @@ func TestCommentsService_PutComment(t *testing.T) {
 				TimeFunc: func() time.Time { return now },
 			}
 
-			rsp := commentsService.PutComment(pz.Request{
+			rsp := commentsService.Put(pz.Request{
 				Vars:    map[string]string{"post-id": "post"},
 				Headers: http.Header{"User": []string{"user"}},
 				Body:    strings.NewReader(testCase.input),

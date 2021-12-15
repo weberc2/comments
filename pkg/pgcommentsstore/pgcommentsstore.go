@@ -317,6 +317,8 @@ func fieldToSQLParam(cp *types.CommentPatch, field types.Field) interface{} {
 		return cp.Modified().Format(time.RFC3339)
 	case types.FieldDeleted:
 		return cp.Deleted()
+	case types.FieldBody:
+		return cp.Body()
 	default:
 		panic(fmt.Sprintf("invalid field: %d", field))
 	}

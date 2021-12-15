@@ -217,6 +217,8 @@ func (c *Comment) marshalField(field Field) ([]byte, error) {
 		return json.Marshal(&c.Modified)
 	case FieldDeleted:
 		return json.Marshal(&c.Deleted)
+	case FieldBody:
+		return json.Marshal(&c.Body)
 	default:
 		panic(fmt.Sprintf("invalid field: %d", field))
 	}

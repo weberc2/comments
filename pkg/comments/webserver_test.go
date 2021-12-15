@@ -1,6 +1,8 @@
 package comments
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -10,6 +12,7 @@ import (
 	"github.com/weberc2/comments/pkg/testsupport"
 	"github.com/weberc2/comments/pkg/types"
 	pz "github.com/weberc2/httpeasy"
+	pztest "github.com/weberc2/httpeasy/testsupport"
 )
 
 func TestWebServer_Reply(t *testing.T) {
@@ -279,4 +282,110 @@ func TestWebServer_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWebServer_Edit(t *testing.T) {
+	for _, testCase := range []struct {
+		name         string
+		state        testsupport.CommentsStoreFake
+		post         types.PostID
+		comment      types.CommentID
+		requestBody  io.Reader
+		wantedStatus int
+		wantedBody   pztest.WantedData
+		wantedState  []*types.Comment
+	}{
+		{
+			name: "simple",
+			state: testsupport.CommentsStoreFake{
+				"post": {
+					"id": {
+						ID:       "id",
+						Post:     "post",
+						Parent:   "",
+						Author:   "author",
+						Created:  someTime,
+						Modified: someTime,
+						Deleted:  false,
+						Body:     "greetings and salutations",
+					},
+				},
+			},
+			post:    "post",
+			comment: "id",
+			requestBody: strings.NewReader(url.Values{
+				"body": []string{"salutations"},
+			}.Encode()),
+			wantedStatus: http.StatusSeeOther,
+			wantedBody:   Literal("303 See Other"),
+			wantedState: []*types.Comment{{
+				ID:       "id",
+				Post:     "post",
+				Parent:   "",
+				Author:   "author",
+				Created:  someTime,
+				Modified: now,
+				Deleted:  false,
+				Body:     "salutations",
+			}},
+		},
+		{
+			name:         "malformed request body",
+			requestBody:  strings.NewReader("this should be form data"),
+			wantedStatus: http.StatusBadRequest,
+			wantedBody: &pz.HTTPError{
+				Status:  http.StatusBadRequest,
+				Message: "parsing form values: missing required field `body`",
+			},
+		},
+	} {
+		webServer := WebServer{
+			Comments: CommentsModel{
+				CommentsStore: testCase.state,
+				TimeFunc:      func() time.Time { return now },
+			},
+			BaseURL: "https://example.org",
+		}
+		rsp := webServer.Edit(pz.Request{
+			Vars: map[string]string{
+				"post-id":    string(testCase.post),
+				"comment-id": string(testCase.comment),
+			},
+			Body: testCase.requestBody,
+		})
+
+		if rsp.Status != testCase.wantedStatus {
+			t.Fatalf(
+				"HTTP Status: wanted `%d`; found `%d`",
+				testCase.wantedStatus,
+				rsp.Status,
+			)
+		}
+
+		if testCase.wantedBody == nil {
+			testCase.wantedBody = Literal("")
+		}
+		if err := pztest.CompareSerializer(
+			testCase.wantedBody,
+			rsp.Data,
+		); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := types.CompareComments(
+			testCase.wantedState,
+			testCase.state.List(),
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+type Literal string
+
+func (wanted Literal) CompareData(found []byte) error {
+	if wanted != Literal(found) {
+		return fmt.Errorf("wanted `%s`; found `%s`", wanted, found)
+	}
+	return nil
 }
