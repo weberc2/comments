@@ -76,50 +76,52 @@ func main() {
 				Description: "add a comment",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:     "id",
-						Usage:    "The comment's ID. Defaults to a UUID.",
-						Required: false,
+						Name:        "id",
+						DefaultText: "<a new uuid>",
+						Usage:       "the comment's ID",
+						Required:    false,
 					},
 					&cli.StringFlag{
 						Name:     "post",
-						Usage:    "The comment's post. Required.",
+						Usage:    "the comment's post",
 						Required: true,
 					},
 					&cli.StringFlag{
-						Name: "parent",
-						Usage: "The comment's parent. Defaults to " +
-							"toplevel comment.",
-						Required: false,
+						Name:        "parent",
+						DefaultText: "<id of the toplevel comment>",
+						Usage:       "the comment's parent",
+						Required:    false,
 					},
 					&cli.StringFlag{
 						Name:     "author",
-						Usage:    "The comment's author. Required.",
+						Usage:    "the comment's author",
 						Required: true,
 					},
 					&cli.TimestampFlag{
-						Name: "created",
-						Usage: "The time the comment was created. Defaults " +
-							"to the current time.",
-						Layout:   time.RFC3339,
-						Required: false,
+						Name:        "created",
+						DefaultText: "<the current time>",
+						Usage:       "the time the comment was created",
+						Layout:      time.RFC3339,
+						Required:    false,
 					},
 					&cli.TimestampFlag{
-						Name: "modified",
-						Usage: "The time the comment was created. Defaults " +
-							"to the current time.",
-						Layout:   time.RFC3339,
-						Required: false,
+						Name:        "modified",
+						DefaultText: "<the current time>",
+						Usage:       "the time the comment was created",
+						Layout:      time.RFC3339,
+						Required:    false,
 					},
 					&cli.BoolFlag{
-						Name: "deleted",
-						Usage: "Whether or not the comment should be " +
-							"considered deleted. Defaults to `false`.",
+						Name:        "deleted",
+						DefaultText: "<false>",
+						Usage: "whether or not the comment should be " +
+							"considered deleted.",
 						Required: false,
 					},
 					&cli.StringFlag{
-						Name:     "body",
-						Usage:    "The comment's body. Defaults to empty.",
-						Required: false,
+						Name:        "body",
+						DefaultText: "empty",
+						Required:    false,
 					},
 				},
 				Action: withStore(func(store *Store, ctx *cli.Context) error {
@@ -169,46 +171,52 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "id",
-						Usage:    "The comment's ID. Required",
+						Usage:    "the comment's id",
 						Required: true,
 					},
 					&cli.StringFlag{
 						Name:     "post",
-						Usage:    "The comment's post. Required.",
+						Usage:    "the comment's post",
 						Required: true,
 					},
 					&cli.StringFlag{
-						Name:     "parent",
-						Usage:    "The comment's parent.",
-						Required: false,
+						Name:        "parent",
+						DefaultText: "<no change>",
+						Usage:       "the comment's parent",
+						Required:    false,
 					},
 					&cli.StringFlag{
-						Name:     "author",
-						Usage:    "The comment's author.",
-						Required: false,
+						Name:        "author",
+						DefaultText: "<no change>",
+						Usage:       "the comment's author",
+						Required:    false,
 					},
 					&cli.TimestampFlag{
-						Name:     "created",
-						Usage:    "The time the comment was created.",
-						Layout:   time.RFC3339,
-						Required: false,
+						Name:        "created",
+						DefaultText: "<no change>",
+						Usage:       "the time the comment was created",
+						Layout:      time.RFC3339,
+						Required:    false,
 					},
 					&cli.TimestampFlag{
-						Name:     "modified",
-						Usage:    "The time the comment was created",
-						Layout:   time.RFC3339,
-						Required: false,
+						Name:        "modified",
+						DefaultText: "<no change>",
+						Usage:       "the time the comment was created",
+						Layout:      time.RFC3339,
+						Required:    false,
 					},
 					&cli.BoolFlag{
-						Name: "deleted",
-						Usage: "Whether or not the comment should be " +
+						Name:        "deleted",
+						DefaultText: "<no change>",
+						Usage: "whether or not the comment should be " +
 							"considered deleted.",
 						Required: false,
 					},
 					&cli.StringFlag{
-						Name:     "body",
-						Usage:    "The comment's body.",
-						Required: false,
+						Name:        "body",
+						DefaultText: "<no change>",
+						Usage:       "The comment's body.",
+						Required:    false,
 					},
 				},
 				Action: withStore(func(store *Store, ctx *cli.Context) error {
@@ -253,12 +261,12 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "post",
-						Usage:    "The comment's post.",
+						Usage:    "the comment's post",
 						Required: true,
 					},
 					&cli.StringFlag{
 						Name:     "id",
-						Usage:    "The comment's ID.",
+						Usage:    "the comment's ID",
 						Required: true,
 					},
 				},
@@ -283,13 +291,13 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "post",
-						Usage:    "The comment's post.",
+						Usage:    "the comment's post",
 						Required: true,
 					},
 					&cli.StringFlag{
 						Name: "parent",
-						Usage: "The parent of the replies to be fetched. " +
-							"If this is omitted, all comments associated " +
+						Usage: "the parent of the replies to be fetched. " +
+							"if this is omitted, all comments associated " +
 							"with the provided post will be retrieved.",
 						Required: false,
 					},
@@ -315,19 +323,19 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "post",
-						Usage:    "The comment's post.",
+						Usage:    "the comment's post",
 						Required: true,
 					},
 					&cli.StringFlag{
 						Name:     "id",
-						Usage:    "The comment's ID.",
+						Usage:    "the comment's ID",
 						Required: true,
 					},
 					&cli.BoolFlag{
-						Name: "hard",
-						Usage: "Completely remove a comment (as opposed to " +
-							"marking its `Deleted` field). Defaults to " +
-							"`false`.",
+						Name:        "hard",
+						DefaultText: "<false>",
+						Usage: "completely remove a comment (as opposed to " +
+							"tombstoning it)",
 						Required: false,
 					},
 				},
