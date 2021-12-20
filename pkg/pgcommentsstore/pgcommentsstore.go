@@ -95,8 +95,8 @@ func (pgcs *PGCommentsStore) ResetTable() error {
 func (pgcs *PGCommentsStore) Put(c *types.Comment) (*types.Comment, error) {
 	if _, err := pgcs.DB.Exec(
 		"INSERT INTO comments "+
-			"(id, post, parent, author, created, modified, deleted, body) VALUES"+
-			"($1, $2, $3, $4, $5, $6, $7, $8);",
+			"(id, post, parent, author, created, modified, deleted, body) "+
+			"VALUES($1, $2, $3, $4, $5, $6, $7, $8);",
 		c.ID,
 		c.Post,
 		c.Parent,
@@ -109,10 +109,7 @@ func (pgcs *PGCommentsStore) Put(c *types.Comment) (*types.Comment, error) {
 		if err, ok := err.(*pq.Error); ok && err.Code == errUniqueViolation {
 			return nil, &types.CommentExistsErr{Post: c.Post, Comment: c.ID}
 		}
-		return nil, fmt.Errorf(
-			"inserting comment into postgres: %w",
-			err,
-		)
+		return nil, fmt.Errorf("inserting comment into postgres: %w", err)
 	}
 
 	return c, nil

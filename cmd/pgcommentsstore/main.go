@@ -8,71 +8,55 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"github.com/weberc2/comments/pkg/pgcommentsstore"
 	"github.com/weberc2/comments/pkg/types"
 )
 
+type Store = pgcommentsstore.PGCommentsStore
+
 func main() {
 	app := cli.App{
-		Name: "pgcommentsstore",
-		Commands: []cli.Command{
-			{
-				Name: "table",
-				Subcommands: cli.Commands{
-					{
-						Name:        "ensure",
-						Description: "ensure that the `comments` table exists",
-						ShortName:   "e",
-						Action: withStore(func(
-							store *pgcommentsstore.PGCommentsStore,
-							ctx *cli.Context,
-						) error {
-							return store.EnsureTable()
-						}),
-					},
-					{
-						Name:        "drop",
-						Description: "drop the `comments` table",
-						ShortName:   "d",
-						Action: withStore(func(
-							store *pgcommentsstore.PGCommentsStore,
-							ctx *cli.Context,
-						) error {
-							return store.DropTable()
-						}),
-					},
-					{
-						Name:        "reset",
-						Description: "reset the `comments` table (drop + ensure)",
-						ShortName:   "r",
-						Action: withStore(func(
-							store *pgcommentsstore.PGCommentsStore,
-							ctx *cli.Context,
-						) error {
-							return store.ResetTable()
-						}),
-					},
-					{
-						Name:        "clear",
-						Description: "clear the `comments` table",
-						ShortName:   "c",
-						Action: withStore(func(
-							store *pgcommentsstore.PGCommentsStore,
-							ctx *cli.Context,
-						) error {
-							return store.ClearTable()
-						}),
-					},
-				},
-			},
-			{
+		Name:        "pgcommentsstore",
+		Description: "a command line `PGCommentsStore` intreface",
+		Commands: []*cli.Command{{
+			Name:        "table",
+			Description: "commands for interacting with the backing pg table",
+			Subcommands: cli.Commands{{
+				Name:        "ensure",
+				Aliases:     []string{"create", "make"},
+				Description: "create the table if it doesn't already exist",
+				Action: withStore(func(store *Store, ctx *cli.Context) error {
+					return store.EnsureTable()
+				}),
+			}, {}, {
+				Name:        "drop",
+				Aliases:     []string{"delete", "destroy"},
+				Description: "drop the postgres table",
+				Action: withStore(func(store *Store, ctx *cli.Context) error {
+					return store.DropTable()
+				}),
+			}, {
+				Name:        "reset",
+				Description: "delete and recreate the postgres table",
+				Action: withStore(func(store *Store, ctx *cli.Context) error {
+					return store.ResetTable()
+				}),
+			}, {
+				Name: "clear",
+				Description: "clear the rows from the table without " +
+					"dropping it",
+				Action: withStore(func(store *Store, ctx *cli.Context) error {
+					return store.ClearTable()
+				}),
+			}},
+		}, {
+			Name:        "comments",
+			Description: "commands for managing comments",
+			Subcommands: []*cli.Command{{
 				Name:        "list",
 				Description: "list comments",
-				Action: withStore(func(
-					store *pgcommentsstore.PGCommentsStore,
-					ctx *cli.Context,
-				) error {
+				Action: withStore(func(store *Store, ctx *cli.Context) error {
 					comments, err := store.List()
 					if err != nil {
 						return err
@@ -86,10 +70,9 @@ func main() {
 					_, err = fmt.Printf("%s\n", data)
 					return err
 				}),
-			},
-			{
+			}, {
 				Name:        "put",
-				Aliases:     []string{"add", "create"},
+				Aliases:     []string{"add", "create", "make", "insert"},
 				Description: "add a comment",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -113,16 +96,18 @@ func main() {
 						Usage:    "The comment's author. Required.",
 						Required: true,
 					},
-					&cli.StringFlag{
+					&cli.TimestampFlag{
 						Name: "created",
 						Usage: "The time the comment was created. Defaults " +
 							"to the current time.",
+						Layout:   time.RFC3339,
 						Required: false,
 					},
-					&cli.StringFlag{
+					&cli.TimestampFlag{
 						Name: "modified",
 						Usage: "The time the comment was created. Defaults " +
 							"to the current time.",
+						Layout:   time.RFC3339,
 						Required: false,
 					},
 					&cli.BoolFlag{
@@ -137,10 +122,7 @@ func main() {
 						Required: false,
 					},
 				},
-				Action: withStore(func(
-					store *pgcommentsstore.PGCommentsStore,
-					ctx *cli.Context,
-				) error {
+				Action: withStore(func(store *Store, ctx *cli.Context) error {
 					var (
 						now      = time.Now()
 						created  = now
@@ -148,18 +130,12 @@ func main() {
 						err      error
 					)
 
-					if s := ctx.String("created"); s != "" {
-						created, err = time.Parse(time.RFC3339, s)
-					}
-					if err != nil {
-						return fmt.Errorf("parsing `--created`: %w", err)
+					if t := ctx.Timestamp("created"); t != nil {
+						created = *t
 					}
 
-					if s := ctx.String("modified"); s != "" {
-						modified, err = time.Parse(time.RFC3339, s)
-					}
-					if err != nil {
-						return fmt.Errorf("parsing `--modified`: %w", err)
+					if t := ctx.Timestamp("modified"); t != nil {
+						modified = *t
 					}
 
 					input := &types.Comment{
@@ -171,26 +147,6 @@ func main() {
 						Modified: modified,
 						Deleted:  ctx.Bool("deleted"),
 						Body:     ctx.String("body"),
-					}
-					createdValue := ctx.String("created")
-					if createdValue != "" {
-						t, err := time.Parse(time.RFC3339, createdValue)
-						if err != nil {
-							log.Fatalf("parsing `created` flag: %v", err)
-						}
-						input.Created = t
-					} else {
-						input.Created = time.Now().UTC()
-					}
-					modifiedValue := ctx.String("modified")
-					if modifiedValue != "" {
-						t, err := time.Parse(time.RFC3339, modifiedValue)
-						if err != nil {
-							log.Fatalf("parsing `modified` flag: %v", err)
-						}
-						input.Modified = t
-					} else {
-						input.Modified = time.Now().UTC()
 					}
 
 					if input.ID == "" {
@@ -207,8 +163,7 @@ func main() {
 					_, err = fmt.Printf("%s\n", data)
 					return err
 				}),
-			},
-			{
+			}, {
 				Name:        "update",
 				Description: "update a comment",
 				Flags: []cli.Flag{
@@ -232,14 +187,16 @@ func main() {
 						Usage:    "The comment's author.",
 						Required: false,
 					},
-					&cli.StringFlag{
+					&cli.TimestampFlag{
 						Name:     "created",
 						Usage:    "The time the comment was created.",
+						Layout:   time.RFC3339,
 						Required: false,
 					},
-					&cli.StringFlag{
+					&cli.TimestampFlag{
 						Name:     "modified",
 						Usage:    "The time the comment was created",
+						Layout:   time.RFC3339,
 						Required: false,
 					},
 					&cli.BoolFlag{
@@ -254,10 +211,7 @@ func main() {
 						Required: false,
 					},
 				},
-				Action: withStore(func(
-					store *pgcommentsstore.PGCommentsStore,
-					ctx *cli.Context,
-				) error {
+				Action: withStore(func(store *Store, ctx *cli.Context) error {
 					cp := types.NewCommentPatch(
 						types.CommentID(ctx.String("id")),
 						types.PostID(ctx.String("post")),
@@ -269,24 +223,10 @@ func main() {
 						cp.SetAuthor(types.UserID(ctx.String("author")))
 					}
 					if ctx.IsSet("created") {
-						created, err := time.Parse(
-							time.RFC3339,
-							ctx.String("created"),
-						)
-						if err != nil {
-							return fmt.Errorf("parsing `--created`: %w", err)
-						}
-						cp.SetCreated(created)
+						cp.SetCreated(*ctx.Timestamp("created"))
 					}
 					if ctx.IsSet("modified") {
-						modified, err := time.Parse(
-							time.RFC3339,
-							ctx.String("modified"),
-						)
-						if err != nil {
-							return fmt.Errorf("parsing `--modified`: %w", err)
-						}
-						cp.SetModified(modified)
+						cp.SetModified(*ctx.Timestamp("modified"))
 					}
 					if ctx.IsSet("deleted") {
 						cp.SetDeleted(ctx.Bool("deleted"))
@@ -306,8 +246,7 @@ func main() {
 					_, err = fmt.Printf("%s\n", data)
 					return err
 				}),
-			},
-			{
+			}, {
 				Name:        "comment",
 				Aliases:     []string{"get", "fetch"},
 				Description: "Retrieve a comment.",
@@ -323,10 +262,7 @@ func main() {
 						Required: true,
 					},
 				},
-				Action: withStore(func(
-					store *pgcommentsstore.PGCommentsStore,
-					ctx *cli.Context,
-				) error {
+				Action: withStore(func(store *Store, ctx *cli.Context) error {
 					c, err := store.Comment(
 						types.PostID(ctx.String("post")),
 						types.CommentID(ctx.String("id")),
@@ -341,8 +277,7 @@ func main() {
 					_, err = fmt.Printf("%s\n", data)
 					return err
 				}),
-			},
-			{
+			}, {
 				Name:        "replies",
 				Description: "Fetch replies to a comment or post.",
 				Flags: []cli.Flag{
@@ -359,10 +294,7 @@ func main() {
 						Required: false,
 					},
 				},
-				Action: withStore(func(
-					store *pgcommentsstore.PGCommentsStore,
-					ctx *cli.Context,
-				) error {
+				Action: withStore(func(store *Store, ctx *cli.Context) error {
 					replies, err := store.Replies(
 						types.PostID(ctx.String("post")),
 						types.CommentID(ctx.String("parent")),
@@ -377,8 +309,7 @@ func main() {
 					_, err = fmt.Printf("%s\n", data)
 					return err
 				}),
-			},
-			{
+			}, {
 				Name:        "delete",
 				Description: "Deletes a comment.",
 				Flags: []cli.Flag{
@@ -400,10 +331,7 @@ func main() {
 						Required: false,
 					},
 				},
-				Action: withStore(func(
-					store *pgcommentsstore.PGCommentsStore,
-					ctx *cli.Context,
-				) error {
+				Action: withStore(func(store *Store, ctx *cli.Context) error {
 					p := types.PostID(ctx.String("post"))
 					c := types.CommentID(ctx.String("id"))
 					if ctx.Bool("hard") {
@@ -413,8 +341,8 @@ func main() {
 						types.NewCommentPatch(c, p).SetDeleted(true),
 					)
 				}),
-			},
-		},
+			}},
+		}},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -424,7 +352,7 @@ func main() {
 
 func withStore(
 	f func(
-		store *pgcommentsstore.PGCommentsStore,
+		store *Store,
 		ctx *cli.Context,
 	) error,
 ) cli.ActionFunc {
