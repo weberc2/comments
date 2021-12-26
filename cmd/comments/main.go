@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -30,19 +31,18 @@ func main() {
 		log.Fatal("missing required env var: LOGIN_URL")
 	}
 
-	logoutURL := os.Getenv("LOGOUT_URL")
-	if logoutURL == "" {
-		log.Fatal("missing required env var: LOGOUT_URL")
-	}
-
 	authBaseURL := os.Getenv("AUTH_BASE_URL")
 	if authBaseURL == "" {
 		log.Fatal("missing required env var: AUTH_BASE_URL")
 	}
 
-	baseURL := os.Getenv("BASE_URL")
-	if baseURL == "" {
+	baseURLString := os.Getenv("BASE_URL")
+	if baseURLString == "" {
 		log.Fatal("missing required env var: BASE_URL")
+	}
+	baseURL, err := url.Parse(baseURLString)
+	if err != nil {
+		log.Fatalf("error parsing `BASE_URL` env var: %v", err)
 	}
 
 	cookieEncryptionKey := os.Getenv("COOKIE_ENCRYPTION_KEY")
@@ -80,8 +80,8 @@ func main() {
 
 	webServer := comments.WebServer{
 		LoginURL:         loginURL,
-		LogoutURL:        logoutURL,
-		BaseURL:          baseURL,
+		LogoutPath:       "/auth/logout",
+		BaseURL:          baseURLString,
 		Comments:         commentsService.Comments,
 		AuthCallbackPath: "/auth/callback",
 	}
@@ -90,7 +90,7 @@ func main() {
 		WebServerApp: client.WebServerApp{
 			Client:          client.DefaultClient(authBaseURL),
 			BaseURL:         baseURL,
-			DefaultRedirect: baseURL,
+			DefaultRedirect: "/",
 			Key:             cookieEncryptionKey,
 		},
 	}
@@ -101,6 +101,7 @@ func main() {
 	if err := http.ListenAndServe(addr, pz.Register(
 		pz.JSONLog(os.Stderr),
 		webServerAuth.AuthCodeCallbackRoute(webServer.AuthCallbackPath),
+		webServerAuth.LogoutRoute(webServer.LogoutPath),
 		pz.Route{
 			Method:  "GET",
 			Path:    "/api/posts/{post-id}/comments/{comment-id}/replies",

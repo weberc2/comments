@@ -1,4 +1,4 @@
-FROM golang
+FROM golang:1.17.3
 
 RUN apt-get update && apt-get install -y ca-certificates
 

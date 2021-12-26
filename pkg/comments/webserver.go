@@ -23,7 +23,7 @@ type logging struct {
 
 type WebServer struct {
 	LoginURL         string
-	LogoutURL        string
+	LogoutPath       string
 	BaseURL          string
 	Comments         CommentsModel
 	AuthCallbackPath string
@@ -127,19 +127,23 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 				"%s?%s",
 				ws.LoginURL,
 				url.Values{
-					"callback": []string{fmt.Sprintf(
-						"%s/%s",
-						strings.TrimRight(ws.BaseURL, "/"),
-						strings.TrimLeft(ws.AuthCallbackPath, "/"),
+					"callback": []string{join(
+						ws.BaseURL,
+						ws.AuthCallbackPath,
 					)},
 					"redirect": []string{fmt.Sprintf(
 						"/posts/%s/comments/%s/replies",
 						post,
-						parent,
+						func() types.CommentID {
+							if parent == "" {
+								return "toplevel"
+							}
+							return parent
+						}(),
 					)},
 				}.Encode(),
 			),
-			LogoutURL: ws.LogoutURL,
+			LogoutURL: join(ws.BaseURL, ws.LogoutPath),
 			BaseURL:   ws.BaseURL,
 			Post:      post,
 			Parent:    parent,
@@ -147,6 +151,14 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 			User:      user, // empty if unauthorized
 		}),
 		&logging{Post: post, Parent: parent, User: user},
+	)
+}
+
+func join(lhs, rhs string) string {
+	return fmt.Sprintf(
+		"%s/%s",
+		strings.TrimRight(lhs, "/"),
+		strings.TrimLeft(rhs, "/"),
 	)
 }
 
