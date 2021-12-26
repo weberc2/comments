@@ -100,9 +100,9 @@ func TestWebServer_Reply(t *testing.T) {
 					TimeFunc:      func() time.Time { return now },
 					IDFunc:        func() types.CommentID { return "comment" },
 				},
-				LoginURL:  "https://auth.example.org/login",
-				LogoutURL: "https://auth.example.org/logout",
-				BaseURL:   "https://comments.example.org",
+				LoginURL:   "https://auth.example.org/login",
+				LogoutPath: "logout",
+				BaseURL:    "https://comments.example.org",
 			}
 
 			rsp := webServer.Reply(pz.Request{
@@ -243,9 +243,9 @@ func TestWebServer_Delete(t *testing.T) {
 					TimeFunc:      func() time.Time { return now },
 					IDFunc:        func() types.CommentID { return "comment" },
 				},
-				LoginURL:  "https://auth.example.org/login",
-				LogoutURL: "https://auth.example.org/logout",
-				BaseURL:   "https://comments.example.org",
+				LoginURL:   "https://auth.example.org/login",
+				LogoutPath: "logout",
+				BaseURL:    "https://comments.example.org",
 			}
 
 			rsp := webServer.Delete(pz.Request{
