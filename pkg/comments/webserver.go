@@ -32,31 +32,31 @@ type WebServer struct {
 
 var repliesTemplate = html.Must(html.New("").Parse(`
 {{- define "comment"}}
-	<div id="{{.Comment.ID}}">
-		<a id="{{.Comment.ID}}"></a>
+	<div id="{{.ID}}">
+		<a id="{{.ID}}"></a>
 		<div class="comment">
-			{{ if not .Comment.Deleted }}
-			<span class="author">{{.Comment.Author}}</p>
+			{{ if not .Deleted }}
+			<span class="author">{{.Author}}</p>
 			{{ else }}
 			<span class="author">DELETED</span>
 			{{ end }}
-			<span class="date">{{.Comment.Created}}</p>
-			{{if eq .Comment.Author .User}}
-			<a href="{{.BaseURL}}/posts/{{.Comment.Post}}/comments/{{.Comment.ID}}/delete-confirm">
+			<span class="date">{{.Created}}</p>
+			{{if eq .Author .User}}
+			<a href="{{.BaseURL}}/posts/{{.Post}}/comments/{{.ID}}/delete-confirm">
 				delete
 			</a>
-			<a href="{{.BaseURL}}/posts/{{.Comment.Post}}/comments/{{.Comment.ID}}/edit">
+			<a href="{{.BaseURL}}/posts/{{.Post}}/comments/{{.ID}}/edit">
 				edit
 			</a>
 			{{end}}
 			{{/* if the user is logged in they can reply */}}
-			{{if and .User (not .Comment.Deleted) }}
-			<a href="{{.BaseURL}}/posts/{{.Comment.Post}}/comments/{{.Comment.ID}}/reply">
+			{{if and .User (not .Deleted) }}
+			<a href="{{.BaseURL}}/posts/{{.Post}}/comments/{{.ID}}/reply">
 				reply
 			</a>
 			{{end}}
-			{{ if not .Comment.Deleted }}
-			<p class="body">{{.Comment.Body}}</p>
+			{{ if not .Deleted }}
+			<p class="body">{{.Body}}</p>
 			{{ else }}
 			<p class="body">DELETED</p>
 			{{end}}
@@ -83,7 +83,9 @@ var repliesTemplate = html.Must(html.New("").Parse(`
 </style>
 </head>
 <body>
-<a href="{{.BaseURL}}/posts/{{.Post}}/comments/toplevel/reply">Reply To Post</a>
+<a href="{{.BaseURL}}/posts/{{.Post}}/comments/toplevel/reply">
+	Reply To Post
+</a>
 <h1>Replies</h1>
 <div id=replies>
 {{if .User}}
@@ -188,7 +190,7 @@ type globals struct {
 
 type reply struct {
 	*globals
-	Comment  *types.Comment
+	*types.Comment
 	Children []*reply
 }
 
