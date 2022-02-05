@@ -30,11 +30,55 @@ type WebServer struct {
 	AuthCallbackPath string
 }
 
-var repliesTemplate = html.Must(html.New("").Parse(`<html>
+var repliesTemplate = html.Must(html.New("").Parse(`
+{{- define "comment"}}
+	<div id="{{.Comment.ID}}">
+		<a id="{{.Comment.ID}}"></a>
+		<div class="comment">
+			{{ if not .Comment.Deleted }}
+			<span class="author">{{.Comment.Author}}</p>
+			{{ else }}
+			<span class="author">DELETED</span>
+			{{ end }}
+			<span class="date">{{.Comment.Created}}</p>
+			{{if eq .Comment.Author .User}}
+			<a href="{{.BaseURL}}/posts/{{.Comment.Post}}/comments/{{.Comment.ID}}/delete-confirm">
+				delete
+			</a>
+			<a href="{{.BaseURL}}/posts/{{.Comment.Post}}/comments/{{.Comment.ID}}/edit">
+				edit
+			</a>
+			{{end}}
+			{{/* if the user is logged in they can reply */}}
+			{{if and .User (not .Comment.Deleted) }}
+			<a href="{{.BaseURL}}/posts/{{.Comment.Post}}/comments/{{.Comment.ID}}/reply">
+				reply
+			</a>
+			{{end}}
+			{{ if not .Comment.Deleted }}
+			<p class="body">{{.Comment.Body}}</p>
+			{{ else }}
+			<p class="body">DELETED</p>
+			{{end}}
+			<div class="comment-children">
+			{{- range .Children}}
+				{{template "comment" .}}
+			{{- end}}
+			</div>
+		</div>
+	</div>
+{{end}}
+
+<html>
 <head>
 <style>
 .comment {
 	border: 1px solid black;
+	margin: 1em 0em 1em 1em;
+	padding: 1em 0em 1em 1em;
+}
+.comment-children {
+	padding-left: 1em;
 }
 </style>
 </head>
@@ -49,40 +93,8 @@ var repliesTemplate = html.Must(html.New("").Parse(`<html>
 	<a href="{{.RegisterURL}}">register</a>
 {{end}}
 
-{{$baseURL := .BaseURL}}
-{{$post := .Post}}
-{{$user := .User}}
 {{range .Replies}}
-	<div id="{{.ID}}">
-		<a id="{{.ID}}"></a>
-		<div class="comment">
-			{{ if not .Deleted }}
-			<span class="author">{{.Author}}</p>
-			{{ else }}
-			<span class="author">DELETED</span>
-			{{ end }}
-			<span class="date">{{.Created}}</p>
-			{{if eq .Author $user}}
-			<a href="{{$baseURL}}/posts/{{$post}}/comments/{{.ID}}/delete-confirm">
-				delete
-			</a>
-			<a href="{{$baseURL}}/posts/{{$post}}/comments/{{.ID}}/edit">
-				edit
-			</a>
-			{{end}}
-			{{/* if the user is logged in they can reply */}}
-			{{if and $user (not .Deleted) }}
-			<a href="{{$baseURL}}/posts/{{$post}}/comments/{{.ID}}/reply">
-				reply
-			</a>
-			{{end}}
-			{{ if not .Deleted }}
-			<p class="body">{{.Body}}</p>
-			{{ else }}
-			<p class="body">DELETED</p>
-			{{ end }}
-		</div>
-	</div>
+	{{template "comment" .}}
 {{end}}
 </div>
 </body>
@@ -95,7 +107,7 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 	if parent == "toplevel" {
 		parent = "" // this tells the CommentStore to fetch toplevel replies.
 	}
-	replies, err := ws.Comments.Replies(post, parent)
+	comments, err := ws.Comments.Replies(post, parent)
 	if err != nil {
 		var c *types.CommentNotFoundErr
 		if errors.As(err, &c) {
@@ -117,14 +129,14 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 
 	return pz.Ok(
 		pz.HTMLTemplate(repliesTemplate, struct {
-			LoginURL    string           `json:"loginURL"`
-			LogoutURL   string           `json:"logoutURL"`
-			RegisterURL string           `json:"registerURL"`
-			BaseURL     string           `json:"baseURL"`
-			Post        types.PostID     `json:"post"`
-			Parent      types.CommentID  `json:"parent"`
-			Replies     []*types.Comment `json:"replies"`
-			User        types.UserID     `json:"user"`
+			LoginURL    string          `json:"loginURL"`
+			LogoutURL   string          `json:"logoutURL"`
+			RegisterURL string          `json:"registerURL"`
+			BaseURL     string          `json:"baseURL"`
+			Post        types.PostID    `json:"post"`
+			Parent      types.CommentID `json:"parent"`
+			Replies     []*reply        `json:"replies"`
+			User        types.UserID    `json:"user"`
 		}{
 			LoginURL: fmt.Sprintf(
 				"%s?%s",
@@ -151,8 +163,11 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 			BaseURL:     ws.BaseURL,
 			Post:        post,
 			Parent:      parent,
-			Replies:     replies,
-			User:        user, // empty if unauthorized
+			User:        user,
+			Replies: replies(
+				comments,
+				&globals{BaseURL: ws.BaseURL, User: user},
+			),
 		}),
 		&logging{Post: post, Parent: parent, User: user},
 	)
@@ -164,6 +179,48 @@ func join(lhs, rhs string) string {
 		strings.TrimRight(lhs, "/"),
 		strings.TrimLeft(rhs, "/"),
 	)
+}
+
+type globals struct {
+	BaseURL string
+	User    types.UserID
+}
+
+type reply struct {
+	*globals
+	Comment  *types.Comment
+	Children []*reply
+}
+
+func replies(comments []*types.Comment, globals *globals) []*reply {
+	// values is just a buffer so we don't have to allocate O(n) replies.
+	values := make([]reply, len(comments)+1)
+
+	// repliesByID allows us to look up a reply by the id of its comment. We'll
+	// put one "root" reply (whose comment is nil) in the map for toplevel
+	// comments (comments whose `Parent` field is `nil`).
+	repliesByID := map[types.CommentID]*reply{"": &values[0]}
+
+	// insert a reply into `repliesByID` for each input comment
+	for i, c := range comments {
+		r := &values[i+1]
+		r.Comment = c
+		r.globals = globals
+		repliesByID[c.ID] = r
+	}
+
+	// now that there is a reply for each comment in `repliesByID`, loop over
+	// the comments again, fetch the reply corresponding to the current comment
+	// and the reply corresponding to the comment's parent and append the
+	// current comment's reply to the parent comment's reply's list of
+	// children.
+	for _, c := range comments {
+		p := repliesByID[c.Parent]
+		p.Children = append(p.Children, repliesByID[c.ID])
+	}
+
+	// return the root reply's children
+	return values[0].Children
 }
 
 var deleteConfirmationTemplate = html.Must(html.New("").Parse(`<html>
