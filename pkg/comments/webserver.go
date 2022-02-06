@@ -509,3 +509,77 @@ func (ws *WebServer) Edit(r pz.Request) pz.Response {
 		&context,
 	)
 }
+
+func (ws *WebServer) RepliesRoute() pz.Route {
+	return pz.Route{
+		Method:  "GET",
+		Path:    "/posts/{post-id}/comments/{comment-id}/replies",
+		Handler: ws.Replies,
+	}
+}
+
+func (ws *WebServer) DeleteConfirmRoute() pz.Route {
+	return pz.Route{
+		Method:  "GET",
+		Path:    "/posts/{post-id}/comments/{comment-id}/delete-confirm",
+		Handler: ws.DeleteConfirm,
+	}
+}
+
+func (ws *WebServer) DeleteRoute() pz.Route {
+	return pz.Route{
+		Method:  "GET",
+		Path:    "/posts/{post-id}/comments/{comment-id}/delete",
+		Handler: ws.Delete,
+	}
+}
+
+func (ws *WebServer) ReplyFormRoute() pz.Route {
+	return pz.Route{
+		Method:  "GET",
+		Path:    "/posts/{post-id}/comments/{comment-id}/reply",
+		Handler: ws.ReplyForm,
+	}
+}
+
+func (ws *WebServer) ReplyRoute() pz.Route {
+	return pz.Route{
+		Method:  "POST",
+		Path:    "/posts/{post-id}/comments/{comment-id}/reply",
+		Handler: ws.Reply,
+	}
+}
+
+func (ws *WebServer) EditFormRoute() pz.Route {
+	return pz.Route{
+		Method:  "GET",
+		Path:    "/posts/{post-id}/comments/{comment-id}/edit",
+		Handler: ws.EditForm,
+	}
+}
+
+func (ws *WebServer) EditRoute() pz.Route {
+	return pz.Route{
+		Method:  "POST",
+		Path:    "/posts/{post-id}/comments/{comment-id}/edit",
+		Handler: ws.Edit,
+	}
+}
+
+func (ws *WebServer) Routes(decorators ...func(pz.Route) pz.Route) []pz.Route {
+	routes := []pz.Route{
+		ws.RepliesRoute(),
+		ws.DeleteConfirmRoute(),
+		ws.DeleteRoute(),
+		ws.ReplyFormRoute(),
+		ws.ReplyRoute(),
+		ws.EditFormRoute(),
+		ws.EditRoute(),
+	}
+	for i := range routes {
+		for _, decorator := range decorators {
+			routes[i] = decorator(routes[i])
+		}
+	}
+	return routes
+}
