@@ -7,7 +7,7 @@ require (
 	github.com/lib/pq v1.10.4
 	github.com/urfave/cli v1.22.5
 	github.com/urfave/cli/v2 v2.3.0
-	github.com/weberc2/auth v0.0.15
+	github.com/weberc2/auth v0.0.17
 	github.com/weberc2/httpeasy v0.0.26
 )
 

@@ -566,8 +566,8 @@ func (ws *WebServer) EditRoute() pz.Route {
 	}
 }
 
-func (ws *WebServer) Routes(decorators ...func(pz.Route) pz.Route) []pz.Route {
-	routes := []pz.Route{
+func (ws *WebServer) Routes() []pz.Route {
+	return []pz.Route{
 		ws.RepliesRoute(),
 		ws.DeleteConfirmRoute(),
 		ws.DeleteRoute(),
@@ -576,10 +576,4 @@ func (ws *WebServer) Routes(decorators ...func(pz.Route) pz.Route) []pz.Route {
 		ws.EditFormRoute(),
 		ws.EditRoute(),
 	}
-	for i := range routes {
-		for _, decorator := range decorators {
-			routes[i] = decorator(routes[i])
-		}
-	}
-	return routes
 }

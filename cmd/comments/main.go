@@ -83,15 +83,6 @@ func main() {
 		},
 	}
 
-	webServer := comments.WebServer{
-		LoginURL:         loginURL,
-		RegisterURL:      registerURL,
-		LogoutPath:       "/auth/logout",
-		BaseURL:          baseURLString,
-		Comments:         commentsService.Comments,
-		AuthCallbackPath: "/auth/callback",
-	}
-
 	webServerAuth := client.AuthTypeWebServer{
 		WebServerApp: client.WebServerApp{
 			Client:          client.DefaultClient(authBaseURL),
@@ -100,14 +91,27 @@ func main() {
 			Key:             cookieEncryptionKey,
 		},
 	}
-	apiAuth := client.AuthTypeClientProgram{}
 
 	a := client.Authenticator{Key: key}
+	webServer := comments.AuthWebServer{
+		WebServer: comments.WebServer{
+			LoginURL:         loginURL,
+			RegisterURL:      registerURL,
+			LogoutPath:       "/auth/logout",
+			BaseURL:          baseURLString,
+			Comments:         commentsService.Comments,
+			AuthCallbackPath: "/auth/callback",
+		},
+		AuthType:      &webServerAuth,
+		Authenticator: a,
+	}
+
+	apiAuth := client.AuthTypeClientProgram{}
 
 	if err := http.ListenAndServe(addr, pz.Register(
 		pz.JSONLog(os.Stderr),
 		append(
-			webServer.Routes(authDecorator(&a, &webServerAuth)),
+			webServer.Routes(),
 			webServerAuth.AuthCodeCallbackRoute(webServer.AuthCallbackPath),
 			webServerAuth.LogoutRoute(webServer.LogoutPath),
 			pz.Route{
