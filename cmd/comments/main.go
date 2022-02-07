@@ -140,19 +140,6 @@ func main() {
 	}
 }
 
-func authDecorator(
-	a *client.Authenticator,
-	authType client.AuthType,
-) func(pz.Route) pz.Route {
-	return func(src pz.Route) pz.Route {
-		return pz.Route{
-			Method:  src.Method,
-			Path:    src.Path,
-			Handler: a.Auth(authType, src.Handler),
-		}
-	}
-}
-
 func decodeKey(encoded string) (*ecdsa.PublicKey, error) {
 	data := []byte(encoded)
 	for {
