@@ -8,18 +8,16 @@ import (
 
 type CommentsStoreFake map[types.PostID]map[types.CommentID]*types.Comment
 
-func (csf CommentsStoreFake) Put(
-	c *types.Comment,
-) (*types.Comment, error) {
+func (csf CommentsStoreFake) Put(c *types.Comment) error {
 	if postComments := csf[c.Post]; postComments != nil {
 		if _, found := postComments[c.ID]; !found {
 			csf[c.Post][c.ID] = c
-			return c, nil
+			return nil
 		}
-		return nil, &types.CommentExistsErr{Post: c.Post, Comment: c.ID}
+		return &types.CommentExistsErr{Post: c.Post, Comment: c.ID}
 	}
 	csf[c.Post] = map[types.CommentID]*types.Comment{c.ID: c}
-	return c, nil
+	return nil
 }
 
 func (csf CommentsStoreFake) Comment(
