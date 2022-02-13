@@ -33,15 +33,6 @@ func TestPut(t *testing.T) {
 				Modified: someDate,
 				Body:     "body",
 			},
-			wantedComment: &types.Comment{
-				ID:       "id",
-				Post:     "post",
-				Parent:   "",
-				Author:   "author",
-				Created:  someDate,
-				Modified: someDate,
-				Body:     "body",
-			},
 			wantedError: nil,
 		},
 		{
@@ -69,7 +60,6 @@ func TestPut(t *testing.T) {
 				Modified: someDate,
 				Body:     "body",
 			},
-			wantedComment: nil,
 			wantedError: &types.CommentExistsErr{
 				Post:    "post",
 				Comment: "id",
@@ -82,7 +72,7 @@ func TestPut(t *testing.T) {
 			}
 
 			for _, comment := range testCase.state {
-				if _, err := store.Put(comment); err != nil {
+				if err := store.Put(comment); err != nil {
 					t.Fatalf(
 						"unexpected error preparing test database state: %v",
 						err,
@@ -90,16 +80,12 @@ func TestPut(t *testing.T) {
 				}
 			}
 
-			c, err := store.Put(&testCase.input)
-
-			if err := testCase.wantedComment.Compare(c); err != nil {
-				t.Fatal(err)
-			}
-
 			if testCase.wantedError == nil {
 				testCase.wantedError = types.NilError{}
 			}
-			if err := testCase.wantedError.CompareErr(err); err != nil {
+			if err := testCase.wantedError.CompareErr(
+				store.Put(&testCase.input),
+			); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -122,7 +108,7 @@ func TestComment(t *testing.T) {
 		Body:     "body",
 	}
 
-	if _, err := store.Put(&input); err != nil {
+	if err := store.Put(&input); err != nil {
 		t.Fatalf("unexpected error putting comment: %v", err)
 	}
 
@@ -191,7 +177,7 @@ func TestUpdate(t *testing.T) {
 			}
 
 			for _, comment := range testCase.state {
-				if _, err := store.Put(comment); err != nil {
+				if err := store.Put(comment); err != nil {
 					t.Fatalf("unexpected error putting comment: %v", err)
 				}
 			}
@@ -268,7 +254,7 @@ func TestDelete(t *testing.T) {
 			}
 
 			for _, comment := range testCase.state {
-				if _, err := store.Put(comment); err != nil {
+				if err := store.Put(comment); err != nil {
 					t.Fatalf("unexpected error putting comment: %v", err)
 				}
 			}
@@ -512,7 +498,7 @@ func TestReplies(t *testing.T) {
 			}
 
 			for _, comment := range testCase.state {
-				if _, err := store.Put(comment); err != nil {
+				if err := store.Put(comment); err != nil {
 					t.Fatalf(
 						"unexpected error preparing test database state: %v",
 						err,
