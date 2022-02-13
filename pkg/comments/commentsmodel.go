@@ -67,7 +67,10 @@ func (cm *CommentsModel) Put(c *types.Comment) (*types.Comment, error) {
 	cp.Modified = now
 	cp.Deleted = false
 	cp.Body = html.EscapeString(c.Body)
-	return cm.CommentsStore.Put(&cp)
+	if err := cm.CommentsStore.Put(&cp); err != nil {
+		return nil, err
+	}
+	return &cp, nil
 }
 
 func (cm *CommentsModel) Delete(p types.PostID, c types.CommentID) error {

@@ -130,7 +130,7 @@ func (wanted *CommentNotFoundErr) Compare(other *CommentNotFoundErr) error {
 }
 
 type CommentsStore interface {
-	Put(*Comment) (*Comment, error)
+	Put(*Comment) error
 	Comment(PostID, CommentID) (*Comment, error)
 	Replies(PostID, CommentID) ([]*Comment, error)
 	Delete(PostID, CommentID) error

@@ -311,39 +311,11 @@ func (c *comment) Scan(pointers []interface{}) {
 	pointers[7] = &c.Body
 }
 
-type commentPatch types.CommentPatch
-
-func (cp *commentPatch) Values(values []interface{}) {
-	patch := (*types.CommentPatch)(cp)
-	for i, c := range Table.Columns {
-		f, err := types.FieldFromName(c.Name)
-		if err != nil {
-			panic(
-				fmt.Sprintf(
-					"expecting field names match column names: %v",
-					err,
-				),
-			)
-		}
-	}
-}
-
 var (
 	// fail compilation if `comment` doesn't implement the `pgutil.Item`
 	// interface.
 	_ pgutil.Item         = &comment{}
-	_ types.CommentsStore = &PGCommentsStore{}
-
-	fieldsOrderedByColumn = [types.FieldCount]types.Field{
-		types.FieldPost,
-		types.FieldID,
-		types.FieldParent,
-		types.FieldAuthor,
-		types.FieldCreated,
-		types.FieldModified,
-		types.FieldDeleted,
-		types.FieldBody,
-	}
+	_ types.CommentsStore = new(PGCommentsStore)
 
 	errCommentExists = &pz.HTTPError{
 		Status:  http.StatusConflict,

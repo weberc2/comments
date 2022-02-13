@@ -154,11 +154,10 @@ func main() {
 					if input.ID == "" {
 						input.ID = types.CommentID(uuid.NewString())
 					}
-					comment, err := store.Put(input)
-					if err != nil {
+					if err := store.Put(input); err != nil {
 						return err
 					}
-					data, err := json.MarshalIndent(comment, "", "  ")
+					data, err := json.MarshalIndent(input, "", "  ")
 					if err != nil {
 						return err
 					}
