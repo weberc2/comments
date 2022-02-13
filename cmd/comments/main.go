@@ -83,15 +83,6 @@ func main() {
 		},
 	}
 
-	webServer := comments.WebServer{
-		LoginURL:         loginURL,
-		RegisterURL:      registerURL,
-		LogoutPath:       "/auth/logout",
-		BaseURL:          baseURLString,
-		Comments:         commentsService.Comments,
-		AuthCallbackPath: "/auth/callback",
-	}
-
 	webServerAuth := client.AuthTypeWebServer{
 		WebServerApp: client.WebServerApp{
 			Client:          client.DefaultClient(authBaseURL),
@@ -100,69 +91,50 @@ func main() {
 			Key:             cookieEncryptionKey,
 		},
 	}
-	apiAuth := client.AuthTypeClientProgram{}
 
 	a := client.Authenticator{Key: key}
+	webServer := comments.AuthWebServer{
+		WebServer: comments.WebServer{
+			LoginURL:         loginURL,
+			RegisterURL:      registerURL,
+			LogoutPath:       "/auth/logout",
+			BaseURL:          baseURLString,
+			Comments:         commentsService.Comments,
+			AuthCallbackPath: "/auth/callback",
+		},
+		AuthType:      &webServerAuth,
+		Authenticator: a,
+	}
+
+	apiAuth := client.AuthTypeClientProgram{}
 
 	if err := http.ListenAndServe(addr, pz.Register(
 		pz.JSONLog(os.Stderr),
-		webServerAuth.AuthCodeCallbackRoute(webServer.AuthCallbackPath),
-		webServerAuth.LogoutRoute(webServer.LogoutPath),
-		pz.Route{
-			Method:  "GET",
-			Path:    "/api/posts/{post-id}/comments/{comment-id}/replies",
-			Handler: commentsService.Replies,
-		},
-		pz.Route{
-			Method:  "POST",
-			Path:    "/api/posts/{post-id}/comments",
-			Handler: a.AuthN(apiAuth, commentsService.Put),
-		},
-		pz.Route{
-			Method:  "GET",
-			Path:    "/api/posts/{post-id}/comments/{comment-id}",
-			Handler: commentsService.Get,
-		},
-		pz.Route{
-			Method:  "PATCH",
-			Path:    "/api/posts/{post-id}/comments/{comment-id}",
-			Handler: a.AuthN(apiAuth, commentsService.Update),
-		},
-		pz.Route{
-			Method:  "GET",
-			Path:    "/posts/{post-id}/comments/{parent-id}/replies",
-			Handler: a.AuthN(&webServerAuth, webServer.Replies),
-		},
-		pz.Route{
-			Method:  "GET",
-			Path:    "/posts/{post-id}/comments/{comment-id}/delete-confirm",
-			Handler: a.AuthN(&webServerAuth, webServer.DeleteConfirm),
-		},
-		pz.Route{
-			Method:  "GET",
-			Path:    "/posts/{post-id}/comments/{comment-id}/delete",
-			Handler: a.AuthN(&webServerAuth, webServer.Delete),
-		},
-		pz.Route{
-			Method:  "GET",
-			Path:    "/posts/{post-id}/comments/{comment-id}/reply",
-			Handler: a.AuthN(&webServerAuth, webServer.ReplyForm),
-		},
-		pz.Route{
-			Method:  "POST",
-			Path:    "/posts/{post-id}/comments/{comment-id}/reply",
-			Handler: a.AuthN(&webServerAuth, webServer.Reply),
-		},
-		pz.Route{
-			Method:  "GET",
-			Path:    "/posts/{post-id}/comments/{comment-id}/edit",
-			Handler: a.AuthN(&webServerAuth, webServer.EditForm),
-		},
-		pz.Route{
-			Method:  "POST",
-			Path:    "/posts/{post-id}/comments/{comment-id}/edit",
-			Handler: a.AuthN(&webServerAuth, webServer.Edit),
-		},
+		append(
+			webServer.Routes(),
+			webServerAuth.AuthCodeCallbackRoute(webServer.AuthCallbackPath),
+			webServerAuth.LogoutRoute(webServer.LogoutPath),
+			pz.Route{
+				Method:  "GET",
+				Path:    "/api/posts/{post-id}/comments/{comment-id}/replies",
+				Handler: commentsService.Replies,
+			},
+			pz.Route{
+				Method:  "POST",
+				Path:    "/api/posts/{post-id}/comments",
+				Handler: a.Auth(apiAuth, commentsService.Put),
+			},
+			pz.Route{
+				Method:  "GET",
+				Path:    "/api/posts/{post-id}/comments/{comment-id}",
+				Handler: commentsService.Get,
+			},
+			pz.Route{
+				Method:  "PATCH",
+				Path:    "/api/posts/{post-id}/comments/{comment-id}",
+				Handler: a.Auth(apiAuth, commentsService.Update),
+			},
+		)...,
 	)); err != nil {
 		log.Fatal(err)
 	}
