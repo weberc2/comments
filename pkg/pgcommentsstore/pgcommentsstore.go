@@ -17,8 +17,6 @@ import (
 	pz "github.com/weberc2/httpeasy"
 )
 
-const errUniqueViolation = "23505"
-
 type PGCommentsStore sql.DB
 
 func OpenEnv() (*PGCommentsStore, error) {
