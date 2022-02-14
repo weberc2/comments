@@ -76,10 +76,7 @@ func TestCommentsModel_Update(t *testing.T) {
 				Deleted:  true,
 				Body:     "hello, world",
 			}},
-			wantedErr: &types.CommentNotFoundErr{
-				Post:    "post",
-				Comment: "id",
-			},
+			wantedErr: types.ErrCommentNotFound,
 		},
 		{
 			name: "validates body",
@@ -117,10 +114,7 @@ func TestCommentsModel_Update(t *testing.T) {
 				Post: "not-found",
 				Body: "salutations",
 			},
-			wantedErr: &types.CommentNotFoundErr{
-				Post:    "not-found",
-				Comment: "not-found",
-			},
+			wantedErr: types.ErrCommentNotFound,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -417,7 +411,7 @@ func TestCommentsModel_Put(t *testing.T) {
 				Author: "author",
 				Body:   goodBody,
 			},
-			wantedErr: &types.CommentNotFoundErr{Post: "post", Comment: "id"},
+			wantedErr: types.ErrCommentNotFound,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

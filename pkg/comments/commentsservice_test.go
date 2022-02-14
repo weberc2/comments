@@ -67,11 +67,8 @@ func TestCommentsService_Delete(t *testing.T) {
 			post:         "post",
 			comment:      "id",
 			wantedStatus: http.StatusNotFound,
-			wantedBody: (&types.CommentNotFoundErr{
-				Post:    "post",
-				Comment: "id",
-			}).HTTPError(),
-			wantedState: nil,
+			wantedBody:   types.ErrCommentNotFound,
+			wantedState:  nil,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -182,10 +179,7 @@ func TestCommentsService_Update(t *testing.T) {
 			comment:      "not-found",
 			body:         `{"body": "this is a valid body"}`,
 			wantedStatus: http.StatusNotFound,
-			wantedBody: (&types.CommentNotFoundErr{
-				Post:    "post",
-				Comment: "not-found",
-			}).HTTPError(),
+			wantedBody:   types.ErrCommentNotFound,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

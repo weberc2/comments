@@ -111,9 +111,8 @@ func (ws *WebServer) Replies(r pz.Request) pz.Response {
 	}
 	comments, err := ws.Comments.Replies(post, parent)
 	if err != nil {
-		var c *types.CommentNotFoundErr
-		if errors.As(err, &c) {
-			pz.NotFound(nil, &logging{
+		if errors.Is(err, types.ErrCommentNotFound) {
+			return pz.NotFound(nil, &logging{
 				Post:   post,
 				Parent: parent,
 				User:   user,
@@ -265,8 +264,7 @@ func (ws *WebServer) DeleteConfirm(r pz.Request) pz.Response {
 
 	comment, err := ws.Comments.Comment(context.Post, context.Comment.ID)
 	if err != nil {
-		var e *types.CommentNotFoundErr
-		if errors.As(err, &e) {
+		if errors.Is(err, types.ErrCommentNotFound) {
 			context.Error = err.Error()
 			return pz.NotFound(nil, context)
 		}
