@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -13,8 +12,6 @@ import (
 
 	"github.com/weberc2/auth/pkg/pgutil"
 	"github.com/weberc2/comments/pkg/types"
-
-	pz "github.com/weberc2/httpeasy"
 )
 
 type PGCommentsStore sql.DB
@@ -76,7 +73,11 @@ func (pgcs *PGCommentsStore) Comment(
 	c types.CommentID,
 ) (*types.Comment, error) {
 	var out comment
-	if err := Table.Get((*sql.DB)(pgcs), &comment{ID: c}, &out); err != nil {
+	if err := Table.Get(
+		(*sql.DB)(pgcs),
+		&comment{ID: c, Post: p},
+		&out,
+	); err != nil {
 		return nil, err
 	}
 	return (*types.Comment)(&out), nil
@@ -215,7 +216,7 @@ func (pgcs *PGCommentsStore) Update(c *types.CommentPatch) error {
 		params...,
 	).Scan(&dummy); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			err = &types.CommentNotFoundErr{Post: c.Post(), Comment: c.ID()}
+			err = types.ErrCommentNotFound
 		}
 		return fmt.Errorf("updating comment in postgres: %w", err)
 	}
@@ -276,7 +277,7 @@ func fieldToSQLParam(cp *types.CommentPatch, field types.Field) interface{} {
 }
 
 func (pgcs *PGCommentsStore) Delete(p types.PostID, c types.CommentID) error {
-	return Table.Delete((*sql.DB)(pgcs), &comment{ID: c})
+	return Table.Delete((*sql.DB)(pgcs), &comment{Post: p, ID: c})
 }
 
 // Implement `pgutil.Item` for `types.Comment`.
@@ -315,14 +316,6 @@ var (
 	_ pgutil.Item         = &comment{}
 	_ types.CommentsStore = new(PGCommentsStore)
 
-	errCommentExists = &pz.HTTPError{
-		Status:  http.StatusConflict,
-		Message: "comment exists",
-	}
-	errCommentNotFound = &pz.HTTPError{
-		Status:  http.StatusNotFound,
-		Message: "comment not found",
-	}
 	Table = pgutil.Table{
 		Name: "comments",
 		PrimaryKeys: []pgutil.Column{{
@@ -355,7 +348,7 @@ var (
 			Name: "body",
 			Type: "VARCHAR(5096)",
 		}},
-		ExistsErr:   errCommentExists,
-		NotFoundErr: errCommentNotFound,
+		ExistsErr:   types.ErrCommentExists,
+		NotFoundErr: types.ErrCommentNotFound,
 	}
 )

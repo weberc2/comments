@@ -166,7 +166,7 @@ func (wanted *Comment) Compare(found *Comment) error {
 		}
 	}
 
-	if wanted.Created != found.Created {
+	if !wanted.Created.Equal(found.Created) {
 		return &FieldMismatchErr{
 			Field:  FieldCreated,
 			Wanted: wanted.Created,
@@ -174,7 +174,7 @@ func (wanted *Comment) Compare(found *Comment) error {
 		}
 	}
 
-	if wanted.Modified != found.Modified {
+	if !wanted.Modified.Equal(found.Modified) {
 		return &FieldMismatchErr{
 			Field:  FieldModified,
 			Wanted: wanted.Modified,
