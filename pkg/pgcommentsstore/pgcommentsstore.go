@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/weberc2/auth/pkg/pgutil"
-	"github.com/weberc2/comments/pkg/types"
+	"github.com/weberc2/comments/pkg/comments/types"
 )
 
 type PGCommentsStore sql.DB

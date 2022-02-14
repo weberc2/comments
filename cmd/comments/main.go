@@ -16,7 +16,7 @@ import (
 	"github.com/weberc2/auth/pkg/client"
 	"github.com/weberc2/comments/pkg/comments"
 	"github.com/weberc2/comments/pkg/pgcommentsstore"
-	"github.com/weberc2/comments/pkg/types"
+	"github.com/weberc2/comments/pkg/comments/types"
 	pz "github.com/weberc2/httpeasy"
 )
 

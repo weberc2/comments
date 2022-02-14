@@ -6,7 +6,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/weberc2/comments/pkg/types"
+	"github.com/weberc2/comments/pkg/comments/types"
 )
 
 func TestPGCommentsStore_Put(t *testing.T) {

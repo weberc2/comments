@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/weberc2/auth/pkg/client"
-	"github.com/weberc2/comments/pkg/testsupport"
+	"github.com/weberc2/comments/pkg/comments/testsupport"
 	pz "github.com/weberc2/httpeasy"
 )
 

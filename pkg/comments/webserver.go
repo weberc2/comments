@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/weberc2/comments/pkg/types"
+	"github.com/weberc2/comments/pkg/comments/types"
 	pz "github.com/weberc2/httpeasy"
 )
 
